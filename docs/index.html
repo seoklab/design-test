@@ -330,8 +330,8 @@
     </div>
 
     <script>
-        // Configuration - UPDATE THIS VALUE after deploying Cloudflare Worker
-        const WORKER_URL = 'https://kidds2026.j2hosim.workers.dev';
+        // Netlify Function endpoint (relative URL - works on same domain)
+        const SUBMIT_URL = '/api/submit';
 
         const VALID_AMINO_ACIDS = new Set('ACDEFGHIKLMNPQRSTVWY');
         const MIN_LENGTH = 10;
@@ -452,11 +452,11 @@
 
             if (!valid) return;
 
-            // Submit to Cloudflare Worker
+            // Submit to Netlify Function
             setLoading(true);
 
             try {
-                const response = await fetch(WORKER_URL, {
+                const response = await fetch(SUBMIT_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

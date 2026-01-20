@@ -182,8 +182,8 @@
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
 
-        // Base URL for results (configure this for your deployment)
-        const RESULTS_BASE_URL = window.location.origin + '/results/';
+        // Base URL for results - use relative URL from current page
+        const RESULTS_BASE_URL = new URL('./results/', window.location.href).href;
 
         async function loadStructure() {
             if (!token) {

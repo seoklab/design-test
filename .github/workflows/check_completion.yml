@@ -2,7 +2,7 @@ name: Check Job Completion
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '* * * * *'
   workflow_dispatch:
 
 jobs:

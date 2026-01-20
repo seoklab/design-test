@@ -2,138 +2,126 @@
 
 A reusable platform for running protein design competitions using AlphaFold3 structure prediction.
 
-## Features
+## For SeokLab Members
 
-- Web-based sequence submission form
-- Automatic validation and job queuing
-- AlphaFold3 structure prediction on HPC/SLURM
-- Private results with token-based URLs
-- Email notifications (submission received + results ready)
-- Interactive 3D structure viewer (Mol*/PDBe-Molstar)
+If you're in the SeokLab GitHub organization and want to run your own competition, follow these steps. The self-hosted runner on `galaxy4` is already available for all seoklab repos.
 
-## Quick Start (For Your Own Competition)
+### Step 1: Create Your Repository
 
-### Prerequisites
+1. Create a new repo under `seoklab` org (e.g., `seoklab/designcomp-kidds`)
+2. Clone this template:
+   ```bash
+   git clone https://github.com/seoklab/design-test.git designcomp-kidds
+   cd designcomp-kidds
+   git remote set-url origin https://github.com/seoklab/designcomp-kidds.git
+   ```
 
-- GitHub repository (can be under an organization)
-- Self-hosted GitHub Actions runner on HPC with:
-  - SLURM job scheduler
-  - AlphaFold3 installed
-  - `sendmail` configured
-  - Python 3.8+
-- Netlify account (free tier works)
+### Step 2: Update Paths (Replace `j2ho` with your username)
 
-### Step 1: Clone and Configure
+**Files to edit:**
 
+1. **`.github/workflows/process_submission.yml`** (lines ~23, ~59):
+   ```yaml
+   # Change:
+   SUBMISSION_DIR="/data/galaxy4/user/j2ho/kidds2026/protein-competition/submissions/..."
+   QUEUE_DIR="/data/galaxy4/user/j2ho/job_queue"
+
+   # To:
+   SUBMISSION_DIR="/data/galaxy4/user/yubeen/my-competition/submissions/..."
+   QUEUE_DIR="/data/galaxy4/user/yubeen/job_queue"
+   ```
+
+2. **`.github/workflows/check_completion.yml`** (lines ~15-17):
+   ```yaml
+   # Change:
+   SUBMISSIONS_BASE: /data/galaxy4/user/j2ho/kidds2026/protein-competition/submissions
+   PUBLIC_RESULTS: /data/galaxy4/user/j2ho/kidds2026/protein-competition/public_results
+   SITE_URL: https://seoklab.github.io/design-test
+
+   # To:
+   SUBMISSIONS_BASE: /data/galaxy4/user/yubeen/my-competition/submissions
+   PUBLIC_RESULTS: /data/galaxy4/user/yubeen/my-competition/public_results
+   SITE_URL: https://seoklab.github.io/designcomp-kidds
+   ```
+
+3. **`scripts/run_af3.py`** - Update AF3 paths if different
+
+### Step 3: Create Directories on Galaxy4
+
+SSH into galaxy4 and create your directories:
 ```bash
-git clone https://github.com/seoklab/design-test.git my-competition
-cd my-competition
+mkdir -p /data/galaxy4/user/yubeen/my-competition/submissions
+mkdir -p /data/galaxy4/user/yubeen/my-competition/public_results
+mkdir -p /data/galaxy4/user/yubeen/job_queue
+chmod 777 /data/galaxy4/user/yubeen/my-competition/submissions
+chmod 777 /data/galaxy4/user/yubeen/my-competition/public_results
 ```
 
-### Step 2: Update Paths
+### Step 4: Set Up Job Queue Cron
 
-Search and replace these paths throughout the codebase:
-
-| Find | Replace With |
-|------|--------------|
-| `/data/galaxy4/user/j2ho/kidds2026/protein-competition` | Your base directory |
-| `/data/galaxy4/user/j2ho/job_queue` | Your job queue directory |
-| `seoklab.github.io/design-test` | Your GitHub Pages URL |
-| `noreply@seoklab.org` | Your email sender address |
-
-**Files to update:**
-- `.github/workflows/process_submission.yml` - submission paths
-- `.github/workflows/check_completion.yml` - paths and SITE_URL
-- `scripts/run_af3.py` - AF3 paths and SLURM settings
-
-### Step 3: Configure GitHub
-
-1. **Enable GitHub Pages**: Settings → Pages → Source: `main` branch, `/docs` folder
-2. **Set up self-hosted runner**: Settings → Actions → Runners → New self-hosted runner
-3. **Update runner labels** in workflow files to match your runner
-
-### Step 4: Configure Netlify
-
-1. Create new site from Git
-2. Set environment variables:
-   - `GITHUB_TOKEN`: Personal access token with `repo` scope
-   - `GITHUB_OWNER`: Your GitHub username or org
-   - `GITHUB_REPO`: Your repository name
-3. Deploy the site
-4. Update `SUBMIT_URL` in `docs/index.html` with your Netlify URL
-
-### Step 5: Set Up Job Queue
-
-Create a cron job on your HPC to submit queued jobs:
-
+Add to your crontab on galaxy4 (`crontab -e`):
 ```bash
-# Example crontab entry (runs every 15 minutes)
-*/15 * * * * /path/to/submit_queued_jobs.sh
+*/15 * * * * for f in /data/galaxy4/user/yubeen/job_queue/*.sh; do [ -f "$f" ] && sbatch "$f" && mv "$f" "$f.done"; done
 ```
 
-Example `submit_queued_jobs.sh`:
-```bash
-#!/bin/bash
-QUEUE_DIR="/your/job_queue"
-for script in "$QUEUE_DIR"/*.sh; do
-    [ -f "$script" ] && sbatch "$script" && mv "$script" "$script.submitted"
-done
+### Step 5: Enable GitHub Pages
+
+1. Go to your repo → **Settings** → **Pages**
+2. Source: **Deploy from a branch**
+3. Branch: `main`, Folder: `/docs`
+4. Your site will be at `https://seoklab.github.io/designcomp-kidds/`
+
+### Step 6: Set Up Netlify
+
+1. Create account at [netlify.com](https://netlify.com)
+2. **Add new site** → **Import an existing project** → Connect to GitHub
+3. Select your `seoklab/designcomp-kidds` repo
+4. Go to **Site settings** → **Environment variables**, add:
+   - `GITHUB_TOKEN`: Create at github.com/settings/tokens (need `repo` scope)
+   - `GITHUB_OWNER`: `seoklab`
+   - `GITHUB_REPO`: `designcomp-kidds`
+5. Note your Netlify URL (e.g., `https://your-site-name.netlify.app`)
+
+### Step 7: Update Form Submit URL
+
+Edit `docs/index.html`, find and update:
+```javascript
+const SUBMIT_URL = 'https://your-site-name.netlify.app/api/submit';
 ```
 
-### Step 6: Customize Branding
+### Step 8: Customize Your Competition
 
 Edit `docs/index.html`:
-- Page title and header
+- Title and subtitle
 - Competition info (goal, dates, deadline)
-- Footer credits
+- Footer
 
-## Configuration Reference
+### Step 9: Push and Test
 
-### Workflow Files
+```bash
+git add -A
+git commit -m "Configure for my competition"
+git push origin main
+```
 
-**`.github/workflows/process_submission.yml`**
-- `SUBMISSION_DIR`: Where submissions are stored
-- `QUEUE_DIR`: Where SLURM scripts are queued
-- Runner labels: `[self-hosted, your-runner]`
+Test by submitting a sequence at your GitHub Pages URL.
 
-**`.github/workflows/check_completion.yml`**
-- `SUBMISSIONS_BASE`: Base path for submissions
-- `PUBLIC_RESULTS`: Where packaged results go
-- `SITE_URL`: Your GitHub Pages URL
-- Schedule: Adjust cron or disable with comments
-
-### Scripts
-
-**`scripts/run_af3.py`**
-- AF3 installation path
-- SLURM partition and resources
-- GPU configuration
-
-**`scripts/package_results.py`**
-- Files to include in results package
-
-### Netlify Function
-
-**`netlify/functions/submit.js`**
-- Sequence length limits
-- Validation rules
+---
 
 ## Architecture
 
 ```
 User → Web Form → Netlify Function → GitHub Issue
-                                          ↓
+       (GitHub Pages)                     ↓
                                    Process Submission
-                                   (GitHub Actions)
+                                   (GitHub Actions on galaxy4)
                                           ↓
-                                   SLURM Job Queue
-                                          ↓
-                                   AlphaFold3 (HPC)
+                                   SLURM Job Queue → AlphaFold3
                                           ↓
                                    Check Completion
                                    (GitHub Actions)
                                           ↓
-                         Email + Viewer Link → User
+                              Email + Viewer Link → User
 ```
 
 ## File Structure
@@ -142,11 +130,10 @@ User → Web Form → Netlify Function → GitHub Issue
 ├── .github/workflows/
 │   ├── process_submission.yml    # Handles new submissions
 │   └── check_completion.yml      # Checks for completed jobs
-├── docs/                         # GitHub Pages
+├── docs/                         # GitHub Pages (public site)
 │   ├── index.html                # Submission form
 │   ├── viewer.html               # Mol* structure viewer
-│   ├── SYSTEM_OVERVIEW.md        # Detailed documentation
-│   └── results/                  # Packaged results (token-based)
+│   └── results/                  # Packaged results
 ├── netlify/functions/
 │   └── submit.js                 # Form submission API
 ├── scripts/
@@ -154,54 +141,44 @@ User → Web Form → Netlify Function → GitHub Issue
 │   ├── prepare_af3_input.py      # Generate AF3 input JSON
 │   ├── run_af3.py                # Generate SLURM script
 │   └── package_results.py        # Package results with token
-├── submissions/                  # (gitignored) Active submissions
-└── public_results/               # (gitignored) Packaged results
+├── submissions/                  # (gitignored) On galaxy4
+└── public_results/               # (gitignored) On galaxy4
 ```
-
-## Sequence Requirements
-
-Default settings (configurable in `netlify/functions/submit.js`):
-- **Length**: 10 - 5,000 residues
-- **Valid amino acids**: A C D E F G H I K L M N P Q R S T V W Y
 
 ## Maintenance
 
-### Enable/Disable Scheduled Checks
+### Enable/Disable Scheduled Result Checks
 
+In `.github/workflows/check_completion.yml`:
 ```yaml
-# In .github/workflows/check_completion.yml
 on:
-  # Comment out to disable
+  # Comment out schedule to disable automatic checks
   schedule:
-    - cron: '* * * * *'
-  workflow_dispatch:  # Always keep for manual triggers
+    - cron: '* * * * *'  # Every minute
+  workflow_dispatch:      # Keep this for manual triggers
 ```
 
-### Manual Triggers
+### Manual Trigger
 
-- **Actions** → **Check Job Completion** → **Run workflow**
+**Actions** → **Check Job Completion** → **Run workflow**
 
-### Deploy Changes
+### Updating the Site
 
-- **GitHub Pages** (docs/): Auto-deploys on push
-- **Netlify Function**: Requires manual redeploy or re-link repo
+- Changes to `docs/` → Auto-deploy via GitHub Pages
+- Changes to `netlify/functions/` → Need to redeploy on Netlify
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
 | Git push rejected | `git pull --rebase && git push` |
-| Permission denied on files | Check file ownership between users |
-| Form submission fails | Check Netlify function logs and env vars |
-| Emails not sending | Verify sendmail configuration on HPC |
-| Viewer not loading | Check browser console for CORS/URL errors |
-
-## License
-
-MIT License - Feel free to use and modify for your own competitions.
+| Permission denied | Run `chmod 777` on submission directories |
+| Form not submitting | Check Netlify env vars and function logs |
+| No emails | Check sendmail config, verify email in submission.json |
+| Workflow not running | Check Actions tab for errors, verify runner is online |
 
 ## Credits
 
 - [AlphaFold3](https://github.com/google-deepmind/alphafold3) - Structure prediction
 - [PDBe-Molstar](https://github.com/molstar/pdbe-molstar) - 3D visualization
-- Original implementation by [SeokLab](https://seoklab.org)
+- [SeokLab](https://seoklab.org)

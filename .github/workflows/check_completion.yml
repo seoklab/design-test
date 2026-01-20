@@ -52,26 +52,7 @@ jobs:
                 # Send email notification if email exists
                 if [ -n "$EMAIL" ]; then
                   echo "Sending results email to: $EMAIL"
-                  sendmail -t <<EMAILEOF
-To: $EMAIL
-From: noreply@seoklab.org
-Subject: Your Protein Structure Results are Ready
-
-Hello,
-
-Your AlphaFold3 structure prediction for "$SEQ_NAME" is now complete!
-
-View your results:
-${SITE_URL}/viewer.html?token=${TOKEN}
-
-Download files:
-${SITE_URL}/results/${TOKEN}/
-
-This is a private link - only you have access to these results until the competition ends.
-
-Best regards,
-Protein Design Competition
-EMAILEOF
+                  printf "To: %s\nFrom: noreply@seoklab.org\nSubject: Your Protein Structure Results are Ready\n\nHello,\n\nYour AlphaFold3 structure prediction for \"%s\" is now complete!\n\nView your results:\n%s/viewer.html?token=%s\n\nDownload files:\n%s/results/%s/\n\nThis is a private link - only you have access to these results until the competition ends.\n\nBest regards,\nProtein Design Competition\n" "$EMAIL" "$SEQ_NAME" "${SITE_URL}" "$TOKEN" "${SITE_URL}" "$TOKEN" | sendmail -t
                   echo "Email sent to $EMAIL"
                 fi
 

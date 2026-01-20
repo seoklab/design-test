@@ -1,115 +1,54 @@
 name: Check Job Completion
 
 on:
-  # Run every 15 minutes
   schedule:
     - cron: '*/15 * * * *'
-  # Allow manual trigger
   workflow_dispatch:
 
 jobs:
   check-jobs:
     runs-on: [self-hosted, galaxy4]
-
     permissions:
       issues: write
       contents: write
-
     env:
       SUBMISSIONS_BASE: /data/galaxy4/user/j2ho/kidds2026/protein-competition/submissions
       PUBLIC_RESULTS: /data/galaxy4/user/j2ho/kidds2026/protein-competition/public_results
-      # Netlify URL for serving results
       SITE_URL: https://696f07c48b8f75aceed24ce1--kidds2026.netlify.app
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check submissions and package results
+      - name: Check and package completed submissions
         id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           RESULTS_UPDATED=false
-
           for dir in ${SUBMISSIONS_BASE}/submission_*; do
-            if [ ! -d "$dir" ]; then
-              continue
-            fi
-
+            [ ! -d "$dir" ] && continue
             STATUS_FILE="$dir/status.json"
-            if [ ! -f "$STATUS_FILE" ]; then
-              continue
-            fi
-
-            # Get current status and issue number
+            [ ! -f "$STATUS_FILE" ] && continue
             STATUS=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('status', 'unknown'))" 2>/dev/null || echo "unknown")
             ISSUE_NUM=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('issue_number', ''))" 2>/dev/null)
-
-            # Skip if already completed or no issue number
-            if [ "$STATUS" = "completed" ] || [ "$STATUS" = "failed" ] || [ -z "$ISSUE_NUM" ]; then
-              continue
-            fi
-
+            [ "$STATUS" = "completed" ] || [ "$STATUS" = "failed" ] || [ -z "$ISSUE_NUM" ] && continue
             echo "Checking $dir (status: $STATUS, issue: $ISSUE_NUM)..."
-
-            # Check if AF3 output exists (model.cif indicates completion)
             MODEL_FILE=$(find "$dir" -maxdepth 2 -name "*_model.cif" -type f 2>/dev/null | head -1)
-
             if [ -n "$MODEL_FILE" ]; then
               echo "Found completed output: $MODEL_FILE"
-
-              # Package results with secret token to public_results/
-              python3 scripts/package_results.py \
-                --submission-dir "$dir" \
-                --output-dir "${PUBLIC_RESULTS}" \
-                --status-file "$STATUS_FILE"
-
-              # Get the generated token
+              python3 scripts/package_results.py --submission-dir "$dir" --output-dir "${PUBLIC_RESULTS}" --status-file "$STATUS_FILE"
               TOKEN=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('result_token', ''))" 2>/dev/null)
-
               if [ -n "$TOKEN" ]; then
                 echo "Results packaged with token: $TOKEN"
-
-                # Copy to docs/results/ for Netlify to serve
                 mkdir -p docs/results/${TOKEN}
                 cp -r ${PUBLIC_RESULTS}/${TOKEN}/* docs/results/${TOKEN}/
                 RESULTS_UPDATED=true
-
-                # Comment on issue with private link
-                gh issue comment "$ISSUE_NUM" --body "## Results Ready - Your AlphaFold3 prediction has completed! [View Structure](${SITE_URL}/viewer.html?token=${TOKEN}) | [Download](${SITE_URL}/results/${TOKEN}/)"
-
-                # Update labels
+                gh issue comment "$ISSUE_NUM" --body "## Results Ready - [View Structure](${SITE_URL}/viewer.html?token=${TOKEN}) | [Download](${SITE_URL}/results/${TOKEN}/)"
                 gh issue edit "$ISSUE_NUM" --remove-label "processing" --add-label "completed" 2>/dev/null || true
-
                 echo "Notified issue #$ISSUE_NUM"
-              fi
-            else
-              # Check if job failed (log exists but no output)
-              LOG_FILE=$(find "$dir/logs" -name "*.log" -type f 2>/dev/null | head -1)
-              if [ -n "$LOG_FILE" ]; then
-                # Check if log indicates failure (but not just warnings)
-                if grep -q "FAILED\|Traceback\|Exception" "$LOG_FILE" 2>/dev/null; then
-                  echo "Job appears to have failed"
-
-                  # Update status
-                  python3 -c "
-import json
-with open('$STATUS_FILE', 'r') as f:
-    data = json.load(f)
-data['status'] = 'failed'
-with open('$STATUS_FILE', 'w') as f:
-    json.dump(data, f, indent=2)
-"
-
-                  gh issue comment "$ISSUE_NUM" --body "## Prediction Failed - There was an error processing your sequence. Please check your input and try again."
-
-                  gh issue edit "$ISSUE_NUM" --remove-label "processing" --add-label "failed" 2>/dev/null || true
-                fi
               fi
             fi
           done
-
           echo "results_updated=$RESULTS_UPDATED" >> $GITHUB_OUTPUT
 
       - name: Commit and push results

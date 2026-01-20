@@ -16,7 +16,6 @@ jobs:
       contents: write
 
     env:
-      # Stable base directory for all submissions (owned by j2ho)
       SUBMISSIONS_BASE: /data/galaxy4/user/j2ho/kidds2026/protein-competition/submissions
       PUBLIC_RESULTS: /data/galaxy4/user/j2ho/kidds2026/protein-competition/public_results
 
@@ -24,76 +23,92 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Find processing submissions
-        id: find
-        run: |
-          # Find all submissions with processing or queued status
-          PROCESSING_DIRS=""
-          for dir in ${SUBMISSIONS_BASE}/submission_*; do
-            if [ -d "$dir" ]; then
-              STATUS_FILE="$dir/status.json"
-              if [ -f "$STATUS_FILE" ]; then
-                STATUS=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('status', 'unknown'))" 2>/dev/null || echo "unknown")
-                if [ "$STATUS" = "processing" ] || [ "$STATUS" = "submitted" ] || [ "$STATUS" = "queued" ]; then
-                  PROCESSING_DIRS="$PROCESSING_DIRS $dir"
-                fi
-              fi
-            fi
-          done
-          echo "dirs=$PROCESSING_DIRS" >> $GITHUB_OUTPUT
-
-      - name: Check each job
-        if: steps.find.outputs.dirs != ''
+      - name: Check submissions and package results
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RESULTS_URL: ${{ vars.RESULTS_URL || 'https://YOUR_GITHUB_PAGES_URL/results' }}
+          RESULTS_URL: ${{ vars.RESULTS_URL || 'https://seoklab.github.io/design-test/results' }}
+          VIEWER_URL: ${{ vars.VIEWER_URL || 'https://seoklab.github.io/design-test/viewer.html' }}
         run: |
-          for dir in ${{ steps.find.outputs.dirs }}; do
-            echo "Checking $dir..."
+          for dir in ${SUBMISSIONS_BASE}/submission_*; do
+            if [ ! -d "$dir" ]; then
+              continue
+            fi
 
-            # Read status file
             STATUS_FILE="$dir/status.json"
             if [ ! -f "$STATUS_FILE" ]; then
               continue
             fi
 
-            JOB_ID=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('slurm_job_id', ''))" 2>/dev/null)
+            # Get current status and issue number
+            STATUS=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('status', 'unknown'))" 2>/dev/null || echo "unknown")
             ISSUE_NUM=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('issue_number', ''))" 2>/dev/null)
 
-            if [ -z "$JOB_ID" ] || [ -z "$ISSUE_NUM" ]; then
-              echo "Missing job_id or issue_number in $STATUS_FILE"
+            # Skip if already completed or no issue number
+            if [ "$STATUS" = "completed" ] || [ "$STATUS" = "failed" ] || [ -z "$ISSUE_NUM" ]; then
               continue
             fi
 
-            # Check job status
-            python3 scripts/check_job_status.py \
-              --submission-dir "$dir" \
-              --job-id "$JOB_ID" \
-              --results-dir "${PUBLIC_RESULTS}" \
-              --output-format json > job_result.json 2>&1 || true
+            echo "Checking $dir (status: $STATUS, issue: $ISSUE_NUM)..."
 
-            COMPLETED=$(python3 -c "import json; print(json.load(open('job_result.json')).get('completed', False))")
-            SUCCESS=$(python3 -c "import json; print(json.load(open('job_result.json')).get('success', False))")
-            TOKEN=$(python3 -c "import json; print(json.load(open('job_result.json')).get('result_token', '') or '')")
+            # Check if AF3 output exists (model.cif indicates completion)
+            MODEL_FILE=$(find "$dir" -maxdepth 2 -name "*_model.cif" -type f 2>/dev/null | head -1)
 
-            if [ "$COMPLETED" = "True" ]; then
-              if [ "$SUCCESS" = "True" ] && [ -n "$TOKEN" ]; then
-                # Success - notify participant with private link
-                VIEWER_URL="${RESULTS_URL}/../viewer.html?token=${TOKEN}"
+            if [ -n "$MODEL_FILE" ]; then
+              echo "Found completed output: $MODEL_FILE"
 
-                gh issue comment "$ISSUE_NUM" --body "## Results Ready - Your AlphaFold3 prediction completed! **View:** [Mol* Viewer](${VIEWER_URL}) | **Download:** [CIF](${RESULTS_URL}/${TOKEN}/) | Results private until competition ends."
-                gh issue edit "$ISSUE_NUM" --remove-label "processing" --add-label "completed"
+              # Package results with secret token
+              python3 scripts/package_results.py \
+                --submission-dir "$dir" \
+                --output-dir "${PUBLIC_RESULTS}" \
+                --status-file "$STATUS_FILE"
 
-              else
-                # Failed
-                ERROR=$(python3 -c "import json; print(json.load(open('job_result.json')).get('error', 'Unknown error'))")
+              # Get the generated token
+              TOKEN=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('result_token', ''))" 2>/dev/null)
 
-                gh issue comment "$ISSUE_NUM" --body "## Prediction Failed - Error: ${ERROR}. Please check your sequence and try again."
-                gh issue edit "$ISSUE_NUM" --remove-label "processing" --add-label "failed"
+              if [ -n "$TOKEN" ]; then
+                echo "Results packaged with token: $TOKEN"
+
+                # Comment on issue with private link
+                gh issue comment "$ISSUE_NUM" --body "## Results Ready
+
+Your AlphaFold3 prediction has completed!
+
+**View Structure:** [Mol* Viewer](${VIEWER_URL}?token=${TOKEN})
+**Download Files:** [Results](${RESULTS_URL}/${TOKEN}/)
+
+> Results are private until the competition ends."
+
+                # Update labels
+                gh issue edit "$ISSUE_NUM" --remove-label "processing" --add-label "completed" 2>/dev/null || true
+
+                echo "Notified issue #$ISSUE_NUM"
+              fi
+            else
+              # Check if job failed (log exists but no output)
+              LOG_FILE=$(find "$dir/logs" -name "*.log" -type f 2>/dev/null | head -1)
+              if [ -n "$LOG_FILE" ]; then
+                # Check if log indicates failure
+                if grep -q "Error\|FAILED\|Traceback" "$LOG_FILE" 2>/dev/null; then
+                  echo "Job appears to have failed"
+
+                  # Update status
+                  python3 -c "
+import json
+with open('$STATUS_FILE', 'r') as f:
+    data = json.load(f)
+data['status'] = 'failed'
+with open('$STATUS_FILE', 'w') as f:
+    json.dump(data, f, indent=2)
+"
+
+                  gh issue comment "$ISSUE_NUM" --body "## Prediction Failed
+
+There was an error processing your sequence. Please check your input and try again.
+
+If the problem persists, please contact the organizers."
+
+                  gh issue edit "$ISSUE_NUM" --remove-label "processing" --add-label "failed" 2>/dev/null || true
+                fi
               fi
             fi
-
-            rm -f job_result.json
           done
-
-      # Results are stored in j2ho's directory, no git commit needed

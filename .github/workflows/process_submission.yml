@@ -42,24 +42,27 @@ jobs:
             --submission-dir "$SUBMISSION_DIR" \
             --submission-id "$SUBMISSION_ID"
 
-      - name: Submit AF3 job to SLURM
-        id: submit
+      - name: Queue AF3 job for submission
+        id: queue
         run: |
+          # Generate sbatch script (without submitting)
           python3 scripts/run_af3.py \
             --submission-dir "$SUBMISSION_DIR" \
             --submission-id "$SUBMISSION_ID" \
-            --mode full \
-            --submit 2>&1 | tee submit_output.txt
+            --mode full
 
-          # Extract job ID from sbatch output
-          JOB_ID=$(grep -oP 'Submitted batch job \K\d+' submit_output.txt || echo "unknown")
-          echo "SLURM_JOB_ID=${JOB_ID}" >> $GITHUB_ENV
+          # Copy script to j2ho's queue directory for submission under their account
+          QUEUE_DIR="/data/galaxy4/user/j2ho/job_queue"
+          SCRIPT_FILE="$SUBMISSION_DIR/scripts/run_${SUBMISSION_ID}_full.sh"
+          cp "$SCRIPT_FILE" "$QUEUE_DIR/${SUBMISSION_ID}.sh"
+          chmod 644 "$QUEUE_DIR/${SUBMISSION_ID}.sh"
+
+          echo "JOB_QUEUED=true" >> $GITHUB_ENV
 
           # Save status file for tracking
           cat > "$SUBMISSION_DIR/status.json" << EOF
           {
-            "status": "processing",
-            "slurm_job_id": "${JOB_ID}",
+            "status": "queued",
             "issue_number": ${{ github.event.issue.number }},
             "submitted_at": "$(date -Iseconds)"
           }
@@ -74,7 +77,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## Submission Received\n\nYour sequence has been validated and submitted to AlphaFold3.\n\n**Submission ID:** \`${{ env.SUBMISSION_ID }}\`\n**SLURM Job ID:** \`${{ env.SLURM_JOB_ID }}\`\n\nYou will receive your results privately once processing is complete.`
+              body: `## Submission Received\n\nYour sequence has been validated and queued for AlphaFold3 processing.\n\n**Submission ID:** \`${{ env.SUBMISSION_ID }}\`\n\nYou will receive your results privately once processing is complete.`
             })
             github.rest.issues.addLabels({
               issue_number: context.issue.number,

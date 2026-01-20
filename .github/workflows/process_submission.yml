@@ -13,6 +13,10 @@ jobs:
       issues: write
       contents: read
 
+    env:
+      # Stable base directory for all submissions (owned by j2ho)
+      SUBMISSIONS_BASE: /data/galaxy4/user/j2ho/kidds2026/protein-competition/submissions
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,9 +24,12 @@ jobs:
       - name: Create submission directory
         run: |
           SUBMISSION_ID="submission_${{ github.event.issue.number }}"
-          mkdir -p results/${SUBMISSION_ID}
+          SUBMISSION_DIR="${SUBMISSIONS_BASE}/${SUBMISSION_ID}"
+          mkdir -p "${SUBMISSION_DIR}"
+          mkdir -p "${SUBMISSION_DIR}/scripts"
+          mkdir -p "${SUBMISSION_DIR}/logs"
           echo "SUBMISSION_ID=${SUBMISSION_ID}" >> $GITHUB_ENV
-          echo "SUBMISSION_DIR=results/${SUBMISSION_ID}" >> $GITHUB_ENV
+          echo "SUBMISSION_DIR=${SUBMISSION_DIR}" >> $GITHUB_ENV
 
       - name: Parse submission from issue
         id: parse
@@ -55,18 +62,18 @@ jobs:
           QUEUE_DIR="/data/galaxy4/user/j2ho/job_queue"
           SCRIPT_FILE="$SUBMISSION_DIR/scripts/run_${SUBMISSION_ID}_full.sh"
           cp "$SCRIPT_FILE" "$QUEUE_DIR/${SUBMISSION_ID}.sh"
-          chmod 644 "$QUEUE_DIR/${SUBMISSION_ID}.sh"
+          chmod 755 "$QUEUE_DIR/${SUBMISSION_ID}.sh"
 
           echo "JOB_QUEUED=true" >> $GITHUB_ENV
 
           # Save status file for tracking
           cat > "$SUBMISSION_DIR/status.json" << EOF
-          {
-            "status": "queued",
-            "issue_number": ${{ github.event.issue.number }},
-            "submitted_at": "$(date -Iseconds)"
-          }
-          EOF
+{
+  "status": "queued",
+  "issue_number": ${{ github.event.issue.number }},
+  "submitted_at": "$(date -Iseconds)"
+}
+EOF
 
       - name: Comment on success
         if: success()

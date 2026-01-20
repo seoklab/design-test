@@ -1,5 +1,7 @@
-# Results directory (contains AF3 outputs)
+# Results and submissions directories (contains AF3 outputs)
 results/
+submissions/
+public_results/
 
 # Python
 __pycache__/

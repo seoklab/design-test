@@ -18,6 +18,10 @@ jobs:
       pages: write
       issues: write
 
+    env:
+      SUBMISSIONS_BASE: /data/galaxy4/user/j2ho/kidds2026/protein-competition/submissions
+      PUBLIC_RESULTS: /data/galaxy4/user/j2ho/kidds2026/protein-competition/public_results
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,7 +29,8 @@ jobs:
       - name: Publish all results
         run: |
           python3 scripts/end_competition.py \
-            --results-dir results \
+            --results-dir "${SUBMISSIONS_BASE}" \
+            --public-results-dir "${PUBLIC_RESULTS}" \
             --public-dir docs \
             --results-url results
 

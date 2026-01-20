@@ -15,6 +15,11 @@ jobs:
       issues: write
       contents: write
 
+    env:
+      # Stable base directory for all submissions (owned by j2ho)
+      SUBMISSIONS_BASE: /data/galaxy4/user/j2ho/kidds2026/protein-competition/submissions
+      PUBLIC_RESULTS: /data/galaxy4/user/j2ho/kidds2026/protein-competition/public_results
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,14 +27,14 @@ jobs:
       - name: Find processing submissions
         id: find
         run: |
-          # Find all submissions with processing status
+          # Find all submissions with processing or queued status
           PROCESSING_DIRS=""
-          for dir in results/submission_*; do
+          for dir in ${SUBMISSIONS_BASE}/submission_*; do
             if [ -d "$dir" ]; then
               STATUS_FILE="$dir/status.json"
               if [ -f "$STATUS_FILE" ]; then
                 STATUS=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('status', 'unknown'))" 2>/dev/null || echo "unknown")
-                if [ "$STATUS" = "processing" ] || [ "$STATUS" = "submitted" ]; then
+                if [ "$STATUS" = "processing" ] || [ "$STATUS" = "submitted" ] || [ "$STATUS" = "queued" ]; then
                   PROCESSING_DIRS="$PROCESSING_DIRS $dir"
                 fi
               fi
@@ -64,7 +69,7 @@ jobs:
             python3 scripts/check_job_status.py \
               --submission-dir "$dir" \
               --job-id "$JOB_ID" \
-              --results-dir "public_results" \
+              --results-dir "${PUBLIC_RESULTS}" \
               --output-format json > job_result.json 2>&1 || true
 
             COMPLETED=$(python3 -c "import json; print(json.load(open('job_result.json')).get('completed', False))")
@@ -91,10 +96,4 @@ jobs:
             rm -f job_result.json
           done
 
-      - name: Commit status updates
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A results/ public_results/ || true
-          git diff --staged --quiet || git commit -m "Update job statuses [skip ci]"
-          git push || true
+      # Results are stored in j2ho's directory, no git commit needed

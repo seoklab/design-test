@@ -52,7 +52,7 @@ def find_af3_outputs(submission_dir: Path) -> dict:
     return outputs
 
 
-def package_results(submission_dir: Path, output_dir: Path, status_file: Path) -> str | None:
+def package_results(submission_dir: Path, output_dir: Path, status_file: Path):
     """
     Package results with a secret token.
 

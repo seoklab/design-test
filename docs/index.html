@@ -11,46 +11,430 @@
             background: #1a1a2e;
             color: #eee;
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            padding: 2rem;
         }
         .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        header {
             text-align: center;
-            max-width: 600px;
-            padding: 2rem;
+            margin-bottom: 2rem;
         }
         h1 {
             color: #e94560;
             font-size: 2.5rem;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
         }
-        p {
+        .subtitle {
             color: #aaa;
             font-size: 1.1rem;
-            line-height: 1.6;
-            margin-bottom: 1rem;
         }
-        .status {
+        .card {
             background: #16213e;
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin-top: 2rem;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
         }
-        .status h2 {
+        .card h2 {
             color: #65cbf3;
+            margin-bottom: 1rem;
+            font-size: 1.4rem;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            color: #ccc;
             margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        label .required {
+            color: #e94560;
+        }
+        .hint {
+            color: #888;
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #2a3f5f;
+            border-radius: 8px;
+            background: #0f0f23;
+            color: #eee;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #65cbf3;
+        }
+        textarea {
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            resize: vertical;
+            min-height: 150px;
+        }
+        .char-count {
+            text-align: right;
+            color: #888;
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
+        .char-count.warning { color: #ffa500; }
+        .char-count.error { color: #e94560; }
+        .error-msg {
+            color: #e94560;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+        .btn {
+            display: inline-block;
+            padding: 0.875rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #e94560;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #d63850;
+            transform: translateY(-1px);
+        }
+        .btn-primary:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: #2a3f5f;
+            color: #ccc;
+            margin-left: 1rem;
+        }
+        .btn-secondary:hover {
+            background: #3a5070;
+        }
+        .actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .status-active {
+            background: rgba(101, 203, 243, 0.2);
+            color: #65cbf3;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .info-item {
+            background: #0f0f23;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+        .info-item h4 {
+            color: #65cbf3;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        .info-item p {
+            color: #eee;
+            font-size: 1.1rem;
+        }
+        .valid-chars {
+            font-family: monospace;
+            background: #0f0f23;
+            padding: 0.75rem;
+            border-radius: 6px;
+            word-break: break-all;
+            color: #65cbf3;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        footer {
+            text-align: center;
+            margin-top: 2rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        footer a {
+            color: #65cbf3;
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 600px) {
+            body { padding: 1rem; }
+            h1 { font-size: 1.8rem; }
+            .card { padding: 1.5rem; }
+            .actions { flex-direction: column; }
+            .btn { width: 100%; text-align: center; }
+            .btn-secondary { margin-left: 0; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Protein Design Competition</h1>
-        <p>Welcome to the protein design competition. Submit your amino acid sequences via GitHub Issues to have them modeled with AlphaFold3.</p>
-        <div class="status">
-            <h2>Competition In Progress</h2>
-            <p>Results will be published here when the competition ends.</p>
+        <header>
+            <h1>Protein Design Competition</h1>
+            <p class="subtitle">Submit your amino acid sequences for AlphaFold3 structure prediction</p>
+        </header>
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <h2 style="margin: 0;">Competition Status</h2>
+                <span class="status-badge status-active">In Progress</span>
+            </div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <h4>Sequence Length</h4>
+                    <p>10 - 5,000 residues</p>
+                </div>
+                <div class="info-item">
+                    <h4>Model</h4>
+                    <p>AlphaFold3</p>
+                </div>
+                <div class="info-item">
+                    <h4>Results</h4>
+                    <p>Private until end</p>
+                </div>
+            </div>
         </div>
+
+        <div class="card">
+            <h2>Submit Your Sequence</h2>
+            <form id="submission-form">
+                <div class="form-group">
+                    <label for="participant_id">Participant ID <span class="required">*</span></label>
+                    <input type="text" id="participant_id" name="participant_id"
+                           placeholder="e.g., team_alpha, john_doe"
+                           pattern="[A-Za-z0-9_-]+" required>
+                    <p class="hint">Letters, numbers, underscores, and hyphens only</p>
+                    <p class="error-msg" id="participant_id_error"></p>
+                </div>
+
+                <div class="form-group">
+                    <label for="sequence_name">Sequence Name <span class="required">*</span></label>
+                    <input type="text" id="sequence_name" name="sequence_name"
+                           placeholder="e.g., designed_helix_v1, novel_enzyme"
+                           pattern="[A-Za-z0-9_-]+" required>
+                    <p class="hint">A descriptive name for your design</p>
+                    <p class="error-msg" id="sequence_name_error"></p>
+                </div>
+
+                <div class="form-group">
+                    <label for="sequence">Amino Acid Sequence <span class="required">*</span></label>
+                    <textarea id="sequence" name="sequence"
+                              placeholder="MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH..."
+                              required></textarea>
+                    <div class="char-count" id="char-count">0 residues</div>
+                    <p class="error-msg" id="sequence_error"></p>
+                    <p class="hint">Valid amino acids:</p>
+                    <div class="valid-chars">A C D E F G H I K L M N P Q R S T V W Y</div>
+                </div>
+
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary" id="submit-btn">Submit Sequence</button>
+                    <button type="button" class="btn btn-secondary" onclick="clearForm()">Clear</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>How It Works</h2>
+            <ol style="color: #ccc; line-height: 2; padding-left: 1.5rem;">
+                <li>Fill out the submission form above with your sequence</li>
+                <li>You'll be redirected to GitHub to confirm your submission</li>
+                <li>Our system will run AlphaFold3 on your sequence</li>
+                <li>You'll receive a private link to view your predicted structure</li>
+                <li>All results will be published when the competition ends</li>
+            </ol>
+            <p style="color: #888; margin-top: 1rem; font-size: 0.9rem;">
+                Note: A GitHub account is required to submit.
+                <a href="https://github.com/signup" target="_blank" style="color: #65cbf3;">Create one for free</a>
+            </p>
+        </div>
+
+        <footer>
+            <p>Powered by <a href="https://github.com/google-deepmind/alphafold3" target="_blank">AlphaFold3</a> |
+               <a id="github-link" href="https://github.com" target="_blank">View on GitHub</a></p>
+        </footer>
     </div>
+
+    <script>
+        // Configuration - UPDATE THESE VALUES
+        const GITHUB_OWNER = 'YOUR_GITHUB_USERNAME';
+        const GITHUB_REPO = 'protein-competition';
+
+        const VALID_AMINO_ACIDS = new Set('ACDEFGHIKLMNPQRSTVWY');
+        const MIN_LENGTH = 10;
+        const MAX_LENGTH = 5000;
+
+        const form = document.getElementById('submission-form');
+        const sequenceInput = document.getElementById('sequence');
+        const charCount = document.getElementById('char-count');
+        const submitBtn = document.getElementById('submit-btn');
+
+        // Clean and validate sequence
+        function cleanSequence(seq) {
+            return seq.toUpperCase().replace(/[^A-Z]/g, '');
+        }
+
+        function validateSequence(seq) {
+            const cleaned = cleanSequence(seq);
+            const invalid = [...cleaned].filter(c => !VALID_AMINO_ACIDS.has(c));
+            return {
+                cleaned,
+                length: cleaned.length,
+                valid: invalid.length === 0 && cleaned.length >= MIN_LENGTH && cleaned.length <= MAX_LENGTH,
+                invalidChars: [...new Set(invalid)],
+                tooShort: cleaned.length < MIN_LENGTH,
+                tooLong: cleaned.length > MAX_LENGTH
+            };
+        }
+
+        function validateId(id) {
+            return /^[A-Za-z0-9_-]+$/.test(id) && id.length > 0;
+        }
+
+        // Update character count
+        sequenceInput.addEventListener('input', function() {
+            const result = validateSequence(this.value);
+            charCount.textContent = `${result.length} residues`;
+            charCount.className = 'char-count';
+
+            if (result.tooLong) {
+                charCount.classList.add('error');
+                charCount.textContent += ` (max ${MAX_LENGTH})`;
+            } else if (result.length > MAX_LENGTH * 0.9) {
+                charCount.classList.add('warning');
+            }
+
+            const errorEl = document.getElementById('sequence_error');
+            if (result.invalidChars.length > 0) {
+                errorEl.textContent = `Invalid characters: ${result.invalidChars.join(', ')}`;
+                errorEl.style.display = 'block';
+            } else if (result.tooShort && result.length > 0) {
+                errorEl.textContent = `Sequence too short (minimum ${MIN_LENGTH} residues)`;
+                errorEl.style.display = 'block';
+            } else {
+                errorEl.style.display = 'none';
+            }
+        });
+
+        // Form submission
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const participantId = document.getElementById('participant_id').value.trim();
+            const sequenceName = document.getElementById('sequence_name').value.trim();
+            const sequence = sequenceInput.value;
+
+            // Validate all fields
+            let valid = true;
+
+            if (!validateId(participantId)) {
+                document.getElementById('participant_id_error').textContent = 'Invalid participant ID';
+                document.getElementById('participant_id_error').style.display = 'block';
+                valid = false;
+            } else {
+                document.getElementById('participant_id_error').style.display = 'none';
+            }
+
+            if (!validateId(sequenceName)) {
+                document.getElementById('sequence_name_error').textContent = 'Invalid sequence name';
+                document.getElementById('sequence_name_error').style.display = 'block';
+                valid = false;
+            } else {
+                document.getElementById('sequence_name_error').style.display = 'none';
+            }
+
+            const seqResult = validateSequence(sequence);
+            if (!seqResult.valid) {
+                valid = false;
+            }
+
+            if (!valid) return;
+
+            // Generate GitHub issue URL with pre-filled content
+            const issueTitle = `[Submission] ${sequenceName} by ${participantId}`;
+            const issueBody = `### Participant ID
+
+${participantId}
+
+### Sequence Name
+
+${sequenceName}
+
+### Amino Acid Sequence
+
+${seqResult.cleaned}`;
+
+            const params = new URLSearchParams({
+                template: 'submit_sequence.yml',
+                title: issueTitle,
+                'participant_id': participantId,
+                'sequence_name': sequenceName,
+                'sequence': seqResult.cleaned
+            });
+
+            // For issue forms, we need to use a different URL format
+            const ghInfo = getGitHubInfo();
+            const issueUrl = `https://github.com/${ghInfo.owner}/${ghInfo.repo}/issues/new?${params.toString()}`;
+
+            // Open GitHub issue creation page
+            window.open(issueUrl, '_blank');
+        });
+
+        function clearForm() {
+            form.reset();
+            charCount.textContent = '0 residues';
+            charCount.className = 'char-count';
+            document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
+        }
+
+        // Auto-detect repository from current URL (for GitHub Pages)
+        function getGitHubInfo() {
+            const hostname = window.location.hostname;
+            if (hostname.endsWith('.github.io')) {
+                const owner = hostname.replace('.github.io', '');
+                const pathParts = window.location.pathname.split('/').filter(p => p);
+                const repo = pathParts[0] || 'protein-competition';
+                return { owner, repo };
+            }
+            return { owner: GITHUB_OWNER, repo: GITHUB_REPO };
+        }
+
+        // Update GitHub link on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const ghInfo = getGitHubInfo();
+            const ghLink = document.getElementById('github-link');
+            if (ghLink && ghInfo.owner !== 'YOUR_GITHUB_USERNAME') {
+                ghLink.href = `https://github.com/${ghInfo.owner}/${ghInfo.repo}`;
+            }
+        });
+    </script>
 </body>
 </html>

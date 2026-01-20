@@ -75,6 +75,7 @@ echo "Start time: $(date)"
 {conda_activate}
 
 af3 --norun_inference \\
+    --flash_attention_implementation=xla \\
     --json_path={json_path} \\
     --output_dir={output_dir}
 
@@ -95,6 +96,7 @@ echo "Start time: $(date)"
 
 af3 --norun_data_pipeline \\
     --run_inference \\
+    --flash_attention_implementation=xla \\
     --json_path={json_path} \\
     --output_dir={output_dir}
 
@@ -113,7 +115,8 @@ echo "Start time: $(date)"
 
 {conda_activate}
 
-af3 --json_path={json_path} \\
+af3 --flash_attention_implementation=xla \\
+    --json_path={json_path} \\
     --output_dir={output_dir}
 
 echo "End time: $(date)"

@@ -42,8 +42,8 @@
       "description": "Design a binder (78 residues) for the given target protein",
       "type": "binder",
       "target_file": "binder_problem_9bk5.pdb",
-      "residue_count": 78,
-      "target_sequence": "GRIVVRGDVAIAEAVVRKVGEVAGKEVILLISYRKNGEWITYQRNLEATPEDVERTIAVIREIYEESGGDFILAIFSD",
+      "residue_count": 72,
+      "target_sequence": "IRCFITPDITSKDCPNGHVCYTKTWCDAFCSIRGKRVDLGCAATCPTVKTGVDIQCCSTDNCNPFPTRKRP",
       "target_msa_file": "/data/galaxy4/user/j2ho/kidds2026/protein-competition/docs/targets/target_9bk5.a3m",
       "participant_msa_mode": "none",
       "expected_binder_length": [50, 100]

@@ -54,9 +54,13 @@ jobs:
               # Multi-problem submission
               TOTAL_PROBLEMS=$(python3 -c "import json; d=json.load(open('$SUBMISSION_FILE')); print(len(d.get('sequences', {})))" 2>/dev/null || echo "$PROBLEM_COUNT")
 
+              # Get already notified problems from status
+              NOTIFIED_PROBLEMS=$(python3 -c "import json; print(','.join(json.load(open('$STATUS_FILE')).get('notified_problems', [])))" 2>/dev/null || echo "")
+
               COMPLETED_LIST=""
               FAILED_LIST=""
               PENDING_LIST=""
+              NEW_COMPLETED_LIST=""
               COMPLETED_COUNT=0
               FAILED_COUNT=0
 
@@ -68,6 +72,10 @@ jobs:
                 if find "$problem_dir" -maxdepth 2 -name "*_model.cif" -type f 2>/dev/null | head -1 | grep -q .; then
                   COMPLETED_COUNT=$((COMPLETED_COUNT + 1))
                   COMPLETED_LIST="${COMPLETED_LIST}${PROBLEM_ID}, "
+                  # Check if this is newly completed (not yet notified)
+                  if ! echo ",$NOTIFIED_PROBLEMS," | grep -q ",${PROBLEM_ID},"; then
+                    NEW_COMPLETED_LIST="${NEW_COMPLETED_LIST}${PROBLEM_ID}, "
+                  fi
                 else
                   # Check SLURM job status for this problem
                   JOB_NAME="${SUBMISSION_ID}_${PROBLEM_ID}"
@@ -87,18 +95,27 @@ jobs:
               COMPLETED_LIST=$(echo "$COMPLETED_LIST" | sed 's/, $//')
               FAILED_LIST=$(echo "$FAILED_LIST" | sed 's/, $//')
               PENDING_LIST=$(echo "$PENDING_LIST" | sed 's/, $//')
+              NEW_COMPLETED_LIST=$(echo "$NEW_COMPLETED_LIST" | sed 's/, $//')
 
               echo "  Completed: $COMPLETED_COUNT/$TOTAL_PROBLEMS ($COMPLETED_LIST)"
+              echo "  Newly completed: $NEW_COMPLETED_LIST"
               echo "  Failed: $FAILED_COUNT ($FAILED_LIST)"
               echo "  Pending: ($PENDING_LIST)"
 
-              # Case 1: All problems completed successfully
-              if [ "$COMPLETED_COUNT" -ge "$TOTAL_PROBLEMS" ] && [ "$COMPLETED_COUNT" -gt 0 ]; then
-                echo "All problems completed, packaging results..."
+              # Skip if no new completions
+              if [ -z "$NEW_COMPLETED_LIST" ] && [ "$FAILED_COUNT" -eq 0 ]; then
+                echo "  No new completions to process"
+                continue
+              fi
+
+              # Package results (incremental - adds to existing token)
+              if [ -n "$NEW_COMPLETED_LIST" ] || [ "$COMPLETED_COUNT" -gt 0 ]; then
+                echo "Packaging results incrementally..."
                 python3 scripts/package_results.py \
                   --submission-dir "$dir" \
                   --output-dir "${PUBLIC_RESULTS}" \
-                  --status-file "$STATUS_FILE"
+                  --status-file "$STATUS_FILE" \
+                  --incremental || true
 
                 TOKEN=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('result_token', ''))" 2>/dev/null)
 
@@ -107,59 +124,49 @@ jobs:
                   mkdir -p docs/results/${TOKEN}
                   cp -r ${PUBLIC_RESULTS}/${TOKEN}/* docs/results/${TOKEN}/
                   RESULTS_UPDATED=true
-
-                  # Send success email to participant
-                  if [ -n "$EMAIL" ]; then
-                    echo "Sending results email to: $EMAIL"
-                    printf "To: %s\nFrom: noreply@seoklab.org\nSubject: All Results Ready - KIDDS 2026\n\nHello %s,\n\nGreat news! All %s of your AlphaFold3 structure predictions are complete.\n\nCompleted: %s\n\nView your results:\n%s/viewer.html?token=%s\n\nDownload all files:\n%s/results/%s/\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$PARTICIPANT_ID" "$COMPLETED_COUNT" "$COMPLETED_LIST" "${SITE_URL}" "$TOKEN" "${SITE_URL}" "$TOKEN" | sendmail -t
-                  fi
-
-                  echo "Processed submission: $SUBMISSION_ID"
                 fi
+              fi
 
-              # Case 2: Some failed, some completed (no pending)
-              elif [ "$FAILED_COUNT" -gt 0 ] && [ -z "$PENDING_LIST" ]; then
-                echo "Some problems failed, packaging partial results..."
-
-                if [ "$COMPLETED_COUNT" -gt 0 ]; then
-                  # Package partial results
-                  python3 scripts/package_results.py \
-                    --submission-dir "$dir" \
-                    --output-dir "${PUBLIC_RESULTS}" \
-                    --status-file "$STATUS_FILE" || true
-
-                  TOKEN=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('result_token', ''))" 2>/dev/null)
-
-                  if [ -n "$TOKEN" ]; then
-                    mkdir -p docs/results/${TOKEN}
-                    cp -r ${PUBLIC_RESULTS}/${TOKEN}/* docs/results/${TOKEN}/ 2>/dev/null || true
-                    RESULTS_UPDATED=true
-                  fi
+              # Determine email type and send
+              if [ -n "$NEW_COMPLETED_LIST" ] && [ -n "$EMAIL" ] && [ -n "$TOKEN" ]; then
+                # Update notified_problems list
+                if [ -n "$NOTIFIED_PROBLEMS" ]; then
+                  NEW_NOTIFIED="${NOTIFIED_PROBLEMS},$(echo $NEW_COMPLETED_LIST | tr ', ' ',')"
+                else
+                  NEW_NOTIFIED=$(echo $NEW_COMPLETED_LIST | tr ', ' ',')
                 fi
+                # Clean up the list
+                NEW_NOTIFIED=$(echo "$NEW_NOTIFIED" | tr ',' '\n' | grep -v '^$' | sort -u | tr '\n' ',' | sed 's/,$//')
+                python3 -c "import json; f=open('$STATUS_FILE'); d=json.load(f); f.close(); d['notified_problems']='$NEW_NOTIFIED'.split(','); f=open('$STATUS_FILE','w'); json.dump(d,f,indent=2); f.close()"
 
-                # Update status to notified_partial
-                python3 -c "import json; f=open('$STATUS_FILE'); d=json.load(f); f.close(); d['status']='notified_partial'; d['completed']='$COMPLETED_LIST'; d['failed']='$FAILED_LIST'; f=open('$STATUS_FILE','w'); json.dump(d,f,indent=2); f.close()"
+                if [ "$COMPLETED_COUNT" -ge "$TOTAL_PROBLEMS" ]; then
+                  # All done - send final email
+                  echo "Sending FINAL results email to: $EMAIL"
+                  python3 -c "import json; f=open('$STATUS_FILE'); d=json.load(f); f.close(); d['status']='completed'; f=open('$STATUS_FILE','w'); json.dump(d,f,indent=2); f.close()"
+                  printf "To: %s\nFrom: noreply@seoklab.org\nSubject: All Results Ready - KIDDS 2026\n\nHello %s,\n\nGreat news! All %s of your AlphaFold3 structure predictions are complete.\n\nCompleted: %s\n\nView your results:\n%s/viewer.html?token=%s\n\nDownload all files:\n%s/results/%s/\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$PARTICIPANT_ID" "$COMPLETED_COUNT" "$COMPLETED_LIST" "${SITE_URL}" "$TOKEN" "${SITE_URL}" "$TOKEN" | sendmail -t
+                else
+                  # Incremental update - send progress email
+                  echo "Sending PROGRESS email to: $EMAIL ($COMPLETED_COUNT/$TOTAL_PROBLEMS)"
+                  printf "To: %s\nFrom: noreply@seoklab.org\nSubject: Progress Update (%s/%s) - KIDDS 2026\n\nHello %s,\n\nYour AlphaFold3 predictions are in progress.\n\nCompleted: %s/%s (%s)\nJust finished: %s\nStill running: %s\n\nView your results (updates as more complete):\n%s/viewer.html?token=%s\n\nYou will receive another email when more results are ready.\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$COMPLETED_COUNT" "$TOTAL_PROBLEMS" "$PARTICIPANT_ID" "$COMPLETED_COUNT" "$TOTAL_PROBLEMS" "$COMPLETED_LIST" "$NEW_COMPLETED_LIST" "$PENDING_LIST" "${SITE_URL}" "$TOKEN" | sendmail -t
+                fi
+                echo "Processed submission: $SUBMISSION_ID"
+              fi
 
-                # Send partial results email to participant
+              # Handle failures (only when no more pending jobs)
+              if [ "$FAILED_COUNT" -gt 0 ] && [ -z "$PENDING_LIST" ]; then
+                echo "Some problems failed, sending notification..."
+                python3 -c "import json; f=open('$STATUS_FILE'); d=json.load(f); f.close(); d['status']='notified_partial'; d['failed']='$FAILED_LIST'; f=open('$STATUS_FILE','w'); json.dump(d,f,indent=2); f.close()"
+
                 if [ -n "$EMAIL" ]; then
-                  echo "Sending partial results email to: $EMAIL"
                   if [ -n "$TOKEN" ]; then
-                    printf "To: %s\nFrom: noreply@seoklab.org\nSubject: Partial Results Ready - KIDDS 2026\n\nHello %s,\n\nYour AlphaFold3 predictions have finished processing, but some problems encountered errors.\n\nCompleted (%s): %s\nFailed (%s): %s\n\nView your completed results:\n%s/viewer.html?token=%s\n\nThe workshop organizers have been notified about the failures. You may resubmit if needed.\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$PARTICIPANT_ID" "$COMPLETED_COUNT" "$COMPLETED_LIST" "$FAILED_COUNT" "$FAILED_LIST" "${SITE_URL}" "$TOKEN" | sendmail -t
+                    printf "To: %s\nFrom: noreply@seoklab.org\nSubject: Results Ready (with errors) - KIDDS 2026\n\nHello %s,\n\nYour AlphaFold3 predictions have finished, but some encountered errors.\n\nCompleted (%s): %s\nFailed (%s): %s\n\nView your completed results:\n%s/viewer.html?token=%s\n\nThe workshop organizers have been notified. You may resubmit failed problems if needed.\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$PARTICIPANT_ID" "$COMPLETED_COUNT" "$COMPLETED_LIST" "$FAILED_COUNT" "$FAILED_LIST" "${SITE_URL}" "$TOKEN" | sendmail -t
                   else
-                    printf "To: %s\nFrom: noreply@seoklab.org\nSubject: Submission Failed - KIDDS 2026\n\nHello %s,\n\nUnfortunately, your AlphaFold3 predictions encountered errors.\n\nFailed (%s): %s\n\nThe workshop organizers have been notified and will investigate. You may resubmit if needed.\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$PARTICIPANT_ID" "$FAILED_COUNT" "$FAILED_LIST" | sendmail -t
+                    printf "To: %s\nFrom: noreply@seoklab.org\nSubject: Submission Failed - KIDDS 2026\n\nHello %s,\n\nUnfortunately, your AlphaFold3 predictions encountered errors.\n\nFailed (%s): %s\n\nThe workshop organizers have been notified. You may resubmit if needed.\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$PARTICIPANT_ID" "$FAILED_COUNT" "$FAILED_LIST" | sendmail -t
                   fi
                 fi
 
                 # Send admin notification
-                echo "Sending admin notification to: ${ADMIN_EMAIL}"
-                printf "To: %s\nFrom: noreply@seoklab.org\nSubject: [ADMIN] Submission Failure - %s\n\nSubmission ID: %s\nParticipant: %s\nEmail: %s\n\nCompleted (%s): %s\nFailed (%s): %s\n\nPlease check the logs at:\n%s/\n" "${ADMIN_EMAIL}" "$SUBMISSION_ID" "$SUBMISSION_ID" "$PARTICIPANT_ID" "$EMAIL" "$COMPLETED_COUNT" "$COMPLETED_LIST" "$FAILED_COUNT" "$FAILED_LIST" "$dir" | sendmail -t
-
-                echo "Notified about partial/failed submission: $SUBMISSION_ID"
-
-              # Case 3: Some completed, still have pending (partial progress)
-              elif [ "$COMPLETED_COUNT" -gt 0 ] && [ -n "$PENDING_LIST" ] && [ "$FAILED_COUNT" -eq 0 ]; then
-                echo "Partial progress, waiting for remaining jobs..."
-                # Don't notify yet, jobs still running
+                printf "To: %s\nFrom: noreply@seoklab.org\nSubject: [ADMIN] Submission Failure - %s\n\nSubmission ID: %s\nParticipant: %s\n\nCompleted (%s): %s\nFailed (%s): %s\n\nLogs: %s/\n" "${ADMIN_EMAIL}" "$SUBMISSION_ID" "$SUBMISSION_ID" "$PARTICIPANT_ID" "$COMPLETED_COUNT" "$COMPLETED_LIST" "$FAILED_COUNT" "$FAILED_LIST" "$dir" | sendmail -t
               fi
 
             else

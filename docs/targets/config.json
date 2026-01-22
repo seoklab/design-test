@@ -5,40 +5,79 @@
       "name": "Problem 1 (3V86)",
       "description": "Small beta-barrel structure - 27 residues",
       "target_file": "3v86_bb.pdb",
-      "residue_count": 27
+      "residue_count": 27,
+      "type": "monomer",
+      "msa_mode": "none"
     },
     {
       "id": "problem_2",
       "name": "Problem 2 (4R80)",
       "description": "Alpha-helical bundle - 76 residues",
       "target_file": "4r80_bb.pdb",
-      "residue_count": 76
+      "residue_count": 76,
+      "type": "monomer",
+      "msa_mode": "none"
     },
     {
       "id": "problem_3",
       "name": "Problem 3 (1QYS)",
       "description": "Mixed alpha/beta fold - 91 residues",
       "target_file": "1qys_bb.pdb",
-      "residue_count": 91
+      "residue_count": 91,
+      "type": "monomer",
+      "msa_mode": "none"
     },
     {
       "id": "problem_4",
       "name": "Problem 4 (6WI5)",
       "description": "Compact globular domain - 92 residues",
       "target_file": "6wi5_bb.pdb",
-      "residue_count": 92
+      "residue_count": 92,
+      "type": "monomer",
+      "msa_mode": "none"
     },
     {
       "id": "problem_5",
-      "name": "Problem 5 (8KA7)",
-      "description": "Extended structure - 115 residues",
-      "target_file": "8ka7_bb.pdb",
-      "residue_count": 115
+      "name": "Problem 5 - Binder Design (9BK5)",
+      "description": "Design a binder (78 residues) for the given target protein",
+      "type": "binder",
+      "target_file": "binder_problem_9bk5.pdb",
+      "residue_count": 78,
+      "target_sequence": "GRIVVRGDVAIAEAVVRKVGEVAGKEVILLISYRKNGEWITYQRNLEATPEDVERTIAVIREIYEESGGDFILAIFSD",
+      "target_msa_file": "/data/galaxy4/user/j2ho/kidds2026/protein-competition/docs/targets/target_9bk5.a3m",
+      "participant_msa_mode": "none",
+      "expected_binder_length": [50, 100]
     }
   ],
+  "problem_types": {
+    "monomer": {
+      "description": "Single chain structure prediction",
+      "chains": ["participant"]
+    },
+    "binder": {
+      "description": "Binder design - participant provides binder sequence for a given target",
+      "chains": ["participant_binder", "given_target"]
+    }
+  },
+  "msa_modes": {
+    "none": "No MSA - empty string, skips MSA search",
+    "search": "Run MSA search (default AF3 behavior)",
+    "precomputed": "Use pre-calculated MSA file (specify msa_file in problem config)"
+  },
   "validation": {
     "min_length": 10,
     "max_length": 5000,
     "valid_amino_acids": "ACDEFGHIKLMNPQRSTVWY"
+  },
+  "_example_binder_problem": {
+    "id": "problem_binder_example",
+    "name": "Binder Design Example",
+    "description": "Design a binder for target protein X",
+    "type": "binder",
+    "target_file": "target_x.pdb",
+    "target_sequence": "MKTAYIAKQRQISFVKSHFSRQ...",
+    "target_msa_file": "target_x.a3m",
+    "participant_msa_mode": "none",
+    "expected_binder_length": [50, 150]
   }
 }

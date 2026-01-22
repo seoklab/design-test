@@ -31,11 +31,13 @@ function validateId(id) {
   return typeof id === 'string' && /^[A-Za-z0-9_-]+$/.test(id) && id.length > 0 && id.length <= 100;
 }
 
-function generateSubmissionId() {
-  // Generate a unique submission ID: timestamp + random string
+function generateSubmissionId(participantId) {
+  // Generate a unique submission ID: participant_timestamp_random
   const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 8);
-  return `sub_${timestamp}_${random}`;
+  const random = Math.random().toString(36).substring(2, 6);
+  // Sanitize and shorten participant ID for the submission ID
+  const sanitizedId = participantId.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20);
+  return `${sanitizedId}_${timestamp}_${random}`;
 }
 
 async function triggerWorkflow(submissionId, participantId, email, sequences) {
@@ -172,8 +174,8 @@ exports.handler = async (event, context) => {
       validatedSequences[problemId] = seqResult.cleaned;
     }
 
-    // Generate unique submission ID
-    const submissionId = generateSubmissionId();
+    // Generate unique submission ID with participant name
+    const submissionId = generateSubmissionId(participant_id);
 
     // Trigger GitHub workflow via repository_dispatch
     await triggerWorkflow(submissionId, participant_id, email, validatedSequences);

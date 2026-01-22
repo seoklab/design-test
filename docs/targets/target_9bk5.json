@@ -1,0 +1,14 @@
+{
+  "name": "target_9bk5",
+  "modelSeeds": [1],
+  "sequences": [
+    {
+      "protein": {
+        "id": "A",
+        "sequence": "GRIVVRGDVAIAEAVVRKVGEVAGKEVILLISYRKNGEWITYQRNLEATPEDVERTIAVIREIYEESGGDFILAIFSD"
+      }
+    }
+  ],
+  "dialect": "alphafold3",
+  "version": 1
+}

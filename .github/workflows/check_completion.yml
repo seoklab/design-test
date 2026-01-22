@@ -25,11 +25,11 @@ jobs:
         run: |
           RESULTS_UPDATED=false
 
-          # Process both old-style (submission_N) and new-style (sub_xxx_yyy) submissions
-          for dir in ${SUBMISSIONS_BASE}/sub_* ${SUBMISSIONS_BASE}/submission_*; do
+          # Process all submissions (directories with status.json)
+          for dir in ${SUBMISSIONS_BASE}/*/; do
             [ ! -d "$dir" ] && continue
 
-            STATUS_FILE="$dir/status.json"
+            STATUS_FILE="${dir}status.json"
             [ ! -f "$STATUS_FILE" ] && continue
 
             # Read status

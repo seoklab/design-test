@@ -63,10 +63,11 @@ jobs:
             [ ! -d "$problem_dir" ] && continue
             PROBLEM_ID=$(basename "$problem_dir")
 
-            # Generate the SLURM script
+            # Generate the SLURM script (singleton groups by participant for fair scheduling)
             python3 scripts/run_af3.py \
               --submission-dir "$problem_dir" \
               --submission-id "${SUBMISSION_ID}_${PROBLEM_ID}" \
+              --participant-id "$PARTICIPANT_ID" \
               --mode full
 
             # Copy to queue directory

@@ -37,6 +37,7 @@ def generate_sbatch_script(
     output_dir: Path,
     log_dir: Path,
     mode: str = "full",
+    participant_id: str | None = None,
 ) -> str:
     """
     Generate sbatch script content for AF3 job.
@@ -47,18 +48,26 @@ def generate_sbatch_script(
         output_dir: Directory for AF3 outputs
         log_dir: Directory for SLURM logs
         mode: "full" (both phases), "cpu" (data pipeline only), "gpu" (inference only)
+        participant_id: Team/participant ID for singleton job grouping
 
     Returns:
         str: sbatch script content
     """
     log_file = log_dir / f"{submission_id}.log"
 
+    # Use participant_id as job name for singleton grouping (1 job per team at a time)
+    # If not provided, fall back to submission_id
+    job_name = participant_id if participant_id else submission_id
+
+    # Add singleton dependency if participant_id is provided
+    singleton_line = "#SBATCH --dependency=singleton\n" if participant_id else ""
+
     script = f"""#!/bin/bash
-#SBATCH -J {submission_id}
+#SBATCH -J {job_name}
 #SBATCH -o {log_file}
 #SBATCH -e {log_file}
 #SBATCH --nice={SLURM_CONFIG['nice']}
-"""
+{singleton_line}"""
 
     # Conda environment activation
     conda_activate = "source /opt/conda/etc/profile.d/conda.sh && conda activate /opt/conda/envs/alphafold3"
@@ -142,6 +151,11 @@ def main():
         help="Unique submission identifier",
     )
     parser.add_argument(
+        "--participant-id",
+        default=None,
+        help="Participant/team ID for singleton job grouping (limits to 1 concurrent job per team)",
+    )
+    parser.add_argument(
         "--mode",
         choices=["full", "cpu", "gpu"],
         default="full",
@@ -186,6 +200,7 @@ def main():
         output_dir=args.submission_dir.resolve(),
         log_dir=log_dir.resolve(),
         mode=args.mode,
+        participant_id=args.participant_id,
     )
 
     # Save script

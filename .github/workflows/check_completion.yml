@@ -10,7 +10,6 @@ jobs:
   check-jobs:
     runs-on: [self-hosted, galaxy4]
     permissions:
-      issues: write
       contents: write
     env:
       SUBMISSIONS_BASE: /data/galaxy4/user/j2ho/kidds2026/protein-competition/submissions
@@ -22,48 +21,108 @@ jobs:
 
       - name: Check and package completed submissions
         id: check
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           RESULTS_UPDATED=false
-          for dir in ${SUBMISSIONS_BASE}/submission_*; do
+
+          # Process both old-style (submission_N) and new-style (sub_xxx_yyy) submissions
+          for dir in ${SUBMISSIONS_BASE}/sub_* ${SUBMISSIONS_BASE}/submission_*; do
             [ ! -d "$dir" ] && continue
+
             STATUS_FILE="$dir/status.json"
             [ ! -f "$STATUS_FILE" ] && continue
+
+            # Read status
             STATUS=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('status', 'unknown'))" 2>/dev/null || echo "unknown")
-            ISSUE_NUM=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('issue_number', ''))" 2>/dev/null)
-            [ "$STATUS" = "completed" ] || [ "$STATUS" = "failed" ] || [ -z "$ISSUE_NUM" ] && continue
-            echo "Checking $dir (status: $STATUS, issue: $ISSUE_NUM)..."
-            MODEL_FILE=$(find "$dir" -maxdepth 2 -name "*_model.cif" -type f 2>/dev/null | head -1)
-            if [ -n "$MODEL_FILE" ]; then
-              echo "Found completed output: $MODEL_FILE"
-              python3 scripts/package_results.py --submission-dir "$dir" --output-dir "${PUBLIC_RESULTS}" --status-file "$STATUS_FILE"
-              TOKEN=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('result_token', ''))" 2>/dev/null)
-              if [ -n "$TOKEN" ]; then
-                echo "Results packaged with token: $TOKEN"
-                mkdir -p docs/results/${TOKEN}
-                cp -r ${PUBLIC_RESULTS}/${TOKEN}/* docs/results/${TOKEN}/
-                RESULTS_UPDATED=true
 
-                # Get email from submission.json
-                SUBMISSION_FILE="$dir/submission.json"
-                EMAIL=$(python3 -c "import json; print(json.load(open('$SUBMISSION_FILE')).get('email', ''))" 2>/dev/null)
-                SEQ_NAME=$(python3 -c "import json; print(json.load(open('$SUBMISSION_FILE')).get('sequence_name', 'your sequence'))" 2>/dev/null)
+            # Skip if already completed or failed
+            [ "$STATUS" = "completed" ] || [ "$STATUS" = "failed" ] && continue
 
-                # Send email notification if email exists
-                if [ -n "$EMAIL" ]; then
-                  echo "Sending results email to: $EMAIL"
-                  printf "To: %s\nFrom: noreply@seoklab.org\nSubject: Your Protein Structure Results are Ready\n\nHello,\n\nYour AlphaFold3 structure prediction for \"%s\" is now complete!\n\nView your results:\n%s/viewer.html?token=%s\n\nDownload files:\n%s/results/%s/\n\nThis is a private link - only you have access to these results until the competition ends.\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$SEQ_NAME" "${SITE_URL}" "$TOKEN" "${SITE_URL}" "$TOKEN" | sendmail -t
-                  echo "Email sent to $EMAIL"
+            SUBMISSION_ID=$(basename "$dir")
+            echo "Checking $SUBMISSION_ID (status: $STATUS)..."
+
+            # Check for multi-problem submission
+            PROBLEM_DIRS=$(find "$dir" -maxdepth 1 -type d -name "problem_*" 2>/dev/null | wc -l)
+
+            if [ "$PROBLEM_DIRS" -gt 0 ]; then
+              # Multi-problem submission: check each problem directory
+              TOTAL_PROBLEMS=$(python3 -c "import json; print(len(json.load(open('$STATUS_FILE')).get('sequences', json.load(open('$dir/submission.json')).get('sequences', {}))))" 2>/dev/null || echo "$PROBLEM_DIRS")
+              COMPLETED=0
+
+              for problem_dir in "$dir"/problem_*; do
+                [ ! -d "$problem_dir" ] && continue
+                # Check for model.cif in problem directory or nested
+                if find "$problem_dir" -maxdepth 2 -name "*_model.cif" -type f 2>/dev/null | head -1 | grep -q .; then
+                  COMPLETED=$((COMPLETED + 1))
                 fi
+              done
 
-                # Also comment on GitHub issue
-                gh issue comment "$ISSUE_NUM" --body "## Results Ready - [View Structure](${SITE_URL}/viewer.html?token=${TOKEN}) | [Download](${SITE_URL}/results/${TOKEN}/)"
-                gh issue edit "$ISSUE_NUM" --remove-label "processing" --add-label "completed" 2>/dev/null || true
-                echo "Processed issue #$ISSUE_NUM"
+              echo "  Problems completed: $COMPLETED/$TOTAL_PROBLEMS"
+
+              # Package when all problems are done
+              if [ "$COMPLETED" -ge "$TOTAL_PROBLEMS" ] && [ "$COMPLETED" -gt 0 ]; then
+                echo "All problems completed, packaging results..."
+                python3 scripts/package_results.py \
+                  --submission-dir "$dir" \
+                  --output-dir "${PUBLIC_RESULTS}" \
+                  --status-file "$STATUS_FILE"
+
+                TOKEN=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('result_token', ''))" 2>/dev/null)
+
+                if [ -n "$TOKEN" ]; then
+                  echo "Results packaged with token: $TOKEN"
+                  mkdir -p docs/results/${TOKEN}
+                  cp -r ${PUBLIC_RESULTS}/${TOKEN}/* docs/results/${TOKEN}/
+                  RESULTS_UPDATED=true
+
+                  # Send results email
+                  SUBMISSION_FILE="$dir/submission.json"
+                  EMAIL=$(python3 -c "import json; print(json.load(open('$SUBMISSION_FILE')).get('email', ''))" 2>/dev/null)
+                  PARTICIPANT_ID=$(python3 -c "import json; print(json.load(open('$SUBMISSION_FILE')).get('participant_id', ''))" 2>/dev/null)
+
+                  if [ -n "$EMAIL" ]; then
+                    echo "Sending results email to: $EMAIL"
+                    printf "To: %s\nFrom: noreply@seoklab.org\nSubject: Your Protein Structure Results are Ready\n\nHello %s,\n\nYour AlphaFold3 structure predictions are now complete!\n\nYou submitted %s problems and all have been processed.\n\nView your results:\n%s/viewer.html?token=%s\n\nDownload all files:\n%s/results/%s/\n\nFile naming convention:\n- %s_problem_1_model.cif (your predicted structure for Problem 1)\n- %s_problem_2_model.cif (your predicted structure for Problem 2)\n- etc.\n\nThis is a private link - only you have access to these results until the competition ends.\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$PARTICIPANT_ID" "$COMPLETED" "${SITE_URL}" "$TOKEN" "${SITE_URL}" "$TOKEN" "$PARTICIPANT_ID" "$PARTICIPANT_ID" | sendmail -t
+                    echo "Email sent to $EMAIL"
+                  fi
+
+                  echo "Processed submission: $SUBMISSION_ID"
+                fi
+              fi
+            else
+              # Single-problem submission (backward compatibility)
+              MODEL_FILE=$(find "$dir" -maxdepth 2 -name "*_model.cif" -type f 2>/dev/null | head -1)
+              if [ -n "$MODEL_FILE" ]; then
+                echo "Found completed output: $MODEL_FILE"
+                python3 scripts/package_results.py \
+                  --submission-dir "$dir" \
+                  --output-dir "${PUBLIC_RESULTS}" \
+                  --status-file "$STATUS_FILE"
+
+                TOKEN=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('result_token', ''))" 2>/dev/null)
+
+                if [ -n "$TOKEN" ]; then
+                  echo "Results packaged with token: $TOKEN"
+                  mkdir -p docs/results/${TOKEN}
+                  cp -r ${PUBLIC_RESULTS}/${TOKEN}/* docs/results/${TOKEN}/
+                  RESULTS_UPDATED=true
+
+                  # Send email
+                  SUBMISSION_FILE="$dir/submission.json"
+                  EMAIL=$(python3 -c "import json; print(json.load(open('$SUBMISSION_FILE')).get('email', ''))" 2>/dev/null)
+                  SEQ_NAME=$(python3 -c "import json; print(json.load(open('$SUBMISSION_FILE')).get('sequence_name', 'your sequence'))" 2>/dev/null)
+
+                  if [ -n "$EMAIL" ]; then
+                    echo "Sending results email to: $EMAIL"
+                    printf "To: %s\nFrom: noreply@seoklab.org\nSubject: Your Protein Structure Results are Ready\n\nHello,\n\nYour AlphaFold3 structure prediction for \"%s\" is now complete!\n\nView your results:\n%s/viewer.html?token=%s\n\nDownload files:\n%s/results/%s/\n\nThis is a private link - only you have access to these results until the competition ends.\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$SEQ_NAME" "${SITE_URL}" "$TOKEN" "${SITE_URL}" "$TOKEN" | sendmail -t
+                    echo "Email sent to $EMAIL"
+                  fi
+
+                  echo "Processed submission: $SUBMISSION_ID"
+                fi
               fi
             fi
           done
+
           echo "results_updated=$RESULTS_UPDATED" >> $GITHUB_OUTPUT
 
       - name: Commit and push results

@@ -1,0 +1,44 @@
+{
+  "problems": [
+    {
+      "id": "problem_1",
+      "name": "Problem 1 (3V86)",
+      "description": "Small beta-barrel structure - 27 residues",
+      "target_file": "3v86_bb.pdb",
+      "residue_count": 27
+    },
+    {
+      "id": "problem_2",
+      "name": "Problem 2 (4R80)",
+      "description": "Alpha-helical bundle - 76 residues",
+      "target_file": "4r80_bb.pdb",
+      "residue_count": 76
+    },
+    {
+      "id": "problem_3",
+      "name": "Problem 3 (1QYS)",
+      "description": "Mixed alpha/beta fold - 91 residues",
+      "target_file": "1qys_bb.pdb",
+      "residue_count": 91
+    },
+    {
+      "id": "problem_4",
+      "name": "Problem 4 (6WI5)",
+      "description": "Compact globular domain - 92 residues",
+      "target_file": "6wi5_bb.pdb",
+      "residue_count": 92
+    },
+    {
+      "id": "problem_5",
+      "name": "Problem 5 (8KA7)",
+      "description": "Extended structure - 115 residues",
+      "target_file": "8ka7_bb.pdb",
+      "residue_count": 115
+    }
+  ],
+  "validation": {
+    "min_length": 10,
+    "max_length": 5000,
+    "valid_amino_acids": "ACDEFGHIKLMNPQRSTVWY"
+  }
+}

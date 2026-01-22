@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KIDDS 2026 Winter Workshop - Protein Design</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.3.0/build/pdbe-molstar.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -14,7 +15,7 @@
             padding: 2rem;
         }
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
         }
         header {
@@ -76,7 +77,7 @@
         textarea {
             font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
             resize: vertical;
-            min-height: 150px;
+            min-height: 100px;
         }
         .char-count {
             text-align: right;
@@ -126,22 +127,15 @@
         .btn-secondary:hover {
             background: #3a5070;
         }
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
         .actions {
             display: flex;
             align-items: center;
             flex-wrap: wrap;
             gap: 1rem;
-        }
-        .status-badge {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-        .status-active {
-            background: rgba(101, 203, 243, 0.2);
-            color: #65cbf3;
         }
         .info-grid {
             display: grid;
@@ -224,12 +218,143 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Problem cards */
+        .problem-card {
+            background: #0f0f23;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #2a3f5f;
+        }
+        .problem-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            gap: 1rem;
+        }
+        .problem-title {
+            flex: 1;
+        }
+        .problem-title h3 {
+            color: #e94560;
+            font-size: 1.2rem;
+            margin-bottom: 0.3rem;
+        }
+        .problem-title p {
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+        .problem-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+        .problem-actions .btn {
+            white-space: nowrap;
+        }
+        .residue-info {
+            display: inline-block;
+            background: #2a3f5f;
+            color: #65cbf3;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        .sequence-input-wrapper {
+            position: relative;
+        }
+        .sequence-input-wrapper textarea {
+            padding-right: 80px;
+        }
+
+        /* Modal for structure viewer */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: #16213e;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1000px;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #2a3f5f;
+        }
+        .modal-header h3 {
+            color: #e94560;
+            font-size: 1.2rem;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            line-height: 1;
+        }
+        .modal-close:hover {
+            color: #fff;
+        }
+        .modal-body {
+            flex: 1;
+            position: relative;
+        }
+        #modal-viewer {
+            width: 100%;
+            height: 100%;
+        }
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #2a3f5f;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-footer .hint {
+            margin: 0;
+        }
+
+        /* Loading indicator for problems */
+        .loading-problems {
+            text-align: center;
+            padding: 2rem;
+            color: #aaa;
+        }
+
         @media (max-width: 600px) {
             body { padding: 1rem; }
             h1 { font-size: 1.8rem; }
             .card { padding: 1.5rem; }
             .actions { flex-direction: column; }
             .btn { width: 100%; text-align: center; }
+            .problem-header { flex-direction: column; }
+            .problem-actions { width: 100%; }
+            .problem-actions .btn { flex: 1; }
+            .modal-content { width: 95%; height: 90vh; }
         }
     </style>
 </head>
@@ -245,7 +370,7 @@
             <div class="info-grid">
                 <div class="info-item">
                     <h4>Goal</h4>
-                    <p>[TODO: Describe competition goal]</p>
+                    <p>Design sequences for given backbone structures</p>
                 </div>
                 <div class="info-item">
                     <h4>Date & Time</h4>
@@ -260,7 +385,7 @@
 
         <div id="success-message" class="message success">
             <h3>Submission Received!</h3>
-            <p id="success-text">Your sequence has been submitted and will be processed shortly. <strong>Check your email for results!</strong></p>
+            <p id="success-text">Your sequences have been submitted and will be processed shortly. <strong>Check your email for results!</strong></p>
         </div>
 
         <div id="error-message" class="message error">
@@ -269,7 +394,7 @@
         </div>
 
         <div class="card" id="form-card">
-            <h2>Submit Your Sequence</h2>
+            <h2>Submit Your Sequences</h2>
             <form id="submission-form">
                 <div class="form-group">
                     <label for="participant_id">Participant ID <span class="required">*</span></label>
@@ -288,32 +413,24 @@
                     <p class="error-msg" id="email_error"></p>
                 </div>
 
-                <div class="form-group">
-                    <label for="sequence_name">Sequence Name <span class="required">*</span></label>
-                    <input type="text" id="sequence_name" name="sequence_name"
-                           placeholder="e.g., designed_helix_v1, novel_enzyme"
-                           pattern="[A-Za-z0-9_-]+" required>
-                    <p class="hint">A descriptive name for your design</p>
-                    <p class="error-msg" id="sequence_name_error"></p>
-                </div>
+                <hr style="border: none; border-top: 1px solid #2a3f5f; margin: 2rem 0;">
 
-                <div class="form-group">
-                    <label for="sequence">Amino Acid Sequence <span class="required">*</span></label>
-                    <textarea id="sequence" name="sequence"
-                              placeholder="MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH..."
-                              required></textarea>
-                    <div class="char-count" id="char-count">0 residues</div>
-                    <p class="error-msg" id="sequence_error"></p>
-                    <p class="hint">Valid amino acids:</p>
-                    <div class="valid-chars">A C D E F G H I K L M N P Q R S T V W Y</div>
+                <h3 style="color: #65cbf3; margin-bottom: 1rem;">Target Structures</h3>
+                <p class="hint" style="margin-bottom: 1.5rem;">
+                    Design a sequence for each target backbone structure below. View or download each structure to understand the fold.
+                    <br>Valid amino acids: <span class="valid-chars" style="display: inline; padding: 0.2rem 0.5rem;">A C D E F G H I K L M N P Q R S T V W Y</span>
+                </p>
+
+                <div id="problems-container">
+                    <div class="loading-problems">Loading problems...</div>
                 </div>
 
                 <div class="actions">
                     <button type="submit" class="btn btn-primary" id="submit-btn">
-                        <span id="btn-text">Submit Sequence</span>
+                        <span id="btn-text">Submit All Sequences</span>
                         <span id="btn-spinner" class="spinner" style="display: none;"></span>
                     </button>
-                    <button type="button" class="btn btn-secondary" onclick="clearForm()">Clear</button>
+                    <button type="button" class="btn btn-secondary" onclick="clearForm()">Clear All</button>
                 </div>
             </form>
         </div>
@@ -321,10 +438,11 @@
         <div class="card">
             <h2>How It Works</h2>
             <ol style="color: #ccc; line-height: 2; padding-left: 1.5rem;">
-                <li>Fill out the submission form above with your sequence</li>
-                <li>Click submit - your job will be queued automatically</li>
-                <li>Our system will run AlphaFold3 on your sequence</li>
-                <li>Results will be sent to your email with a private viewing link</li>
+                <li>View each target backbone structure and design a sequence for it</li>
+                <li>Enter your sequences for all problems above</li>
+                <li>Click submit - your jobs will be queued automatically</li>
+                <li>Our system will run AlphaFold3 on each of your sequences</li>
+                <li>Results will be sent to your email with private viewing links</li>
                 <li>All results will be published when the competition ends</li>
             </ol>
         </div>
@@ -334,17 +452,35 @@
         </footer>
     </div>
 
+    <!-- Structure Viewer Modal -->
+    <div class="modal-overlay" id="viewer-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Structure Viewer</h3>
+                <button class="modal-close" onclick="closeViewerModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-viewer"></div>
+            </div>
+            <div class="modal-footer">
+                <p class="hint">Backbone-only structure with all residues as UNK (unknown). Design a sequence that folds into this shape.</p>
+                <a id="modal-download" class="btn btn-secondary btn-small" href="#" download>Download PDB</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.3.0/build/pdbe-molstar-plugin.js"></script>
     <script>
         // Netlify Function endpoint
         const SUBMIT_URL = 'https://kidds2026.netlify.app/api/submit';
+        const CONFIG_URL = './targets/config.json';
+
+        let problemsConfig = null;
+        let viewerInstance = null;
 
         const VALID_AMINO_ACIDS = new Set('ACDEFGHIKLMNPQRSTVWY');
-        const MIN_LENGTH = 10;
-        const MAX_LENGTH = 5000;
 
         const form = document.getElementById('submission-form');
-        const sequenceInput = document.getElementById('sequence');
-        const charCount = document.getElementById('char-count');
         const submitBtn = document.getElementById('submit-btn');
         const btnText = document.getElementById('btn-text');
         const btnSpinner = document.getElementById('btn-spinner');
@@ -352,21 +488,86 @@
         const errorMessage = document.getElementById('error-message');
         const successText = document.getElementById('success-text');
         const errorText = document.getElementById('error-text');
+        const problemsContainer = document.getElementById('problems-container');
+
+        // Load problems configuration
+        async function loadProblems() {
+            try {
+                const response = await fetch(CONFIG_URL);
+                if (!response.ok) throw new Error('Failed to load problems');
+                problemsConfig = await response.json();
+                renderProblems();
+            } catch (error) {
+                console.error('Error loading problems:', error);
+                problemsContainer.innerHTML = '<p style="color: #e94560;">Failed to load problems. Please refresh the page.</p>';
+            }
+        }
+
+        function renderProblems() {
+            if (!problemsConfig || !problemsConfig.problems) return;
+
+            const html = problemsConfig.problems.map((problem, index) => {
+                const residueInfo = problem.residue_count
+                    ? `<span class="residue-info">${problem.residue_count} residues</span>`
+                    : '';
+
+                return `
+                    <div class="problem-card" data-problem-id="${problem.id}">
+                        <div class="problem-header">
+                            <div class="problem-title">
+                                <h3>${problem.name}${residueInfo}</h3>
+                                <p>${problem.description}</p>
+                            </div>
+                            <div class="problem-actions">
+                                <button type="button" class="btn btn-secondary btn-small" onclick="openViewerModal('${problem.id}', '${problem.name}', '${problem.target_file}')">
+                                    View Structure
+                                </button>
+                                <a class="btn btn-secondary btn-small" href="./targets/${problem.target_file}" download>
+                                    Download
+                                </a>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="sequence_${problem.id}">Your Sequence <span class="required">*</span></label>
+                            <div class="sequence-input-wrapper">
+                                <textarea
+                                    id="sequence_${problem.id}"
+                                    name="sequence_${problem.id}"
+                                    placeholder="Enter your designed amino acid sequence..."
+                                    required
+                                    oninput="updateCharCount('${problem.id}')"
+                                ></textarea>
+                            </div>
+                            <div class="char-count" id="char-count-${problem.id}">0 residues</div>
+                            <p class="error-msg" id="error-${problem.id}"></p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            problemsContainer.innerHTML = html;
+        }
 
         function cleanSequence(seq) {
             return seq.toUpperCase().replace(/[^A-Z]/g, '');
         }
 
-        function validateSequence(seq) {
+        function validateSequence(seq, problemId) {
             const cleaned = cleanSequence(seq);
-            const invalid = [...cleaned].filter(c => !VALID_AMINO_ACIDS.has(c));
+            const minLen = problemsConfig?.validation?.min_length || 10;
+            const maxLen = problemsConfig?.validation?.max_length || 5000;
+            const validAA = new Set(problemsConfig?.validation?.valid_amino_acids || 'ACDEFGHIKLMNPQRSTVWY');
+
+            const invalid = [...cleaned].filter(c => !validAA.has(c));
             return {
                 cleaned,
                 length: cleaned.length,
-                valid: invalid.length === 0 && cleaned.length >= MIN_LENGTH && cleaned.length <= MAX_LENGTH,
+                valid: invalid.length === 0 && cleaned.length >= minLen && cleaned.length <= maxLen,
                 invalidChars: [...new Set(invalid)],
-                tooShort: cleaned.length < MIN_LENGTH,
-                tooLong: cleaned.length > MAX_LENGTH
+                tooShort: cleaned.length < minLen && cleaned.length > 0,
+                tooLong: cleaned.length > maxLen,
+                minLen,
+                maxLen
             };
         }
 
@@ -374,22 +575,51 @@
             return /^[A-Za-z0-9_-]+$/.test(id) && id.length > 0;
         }
 
+        function updateCharCount(problemId) {
+            const textarea = document.getElementById(`sequence_${problemId}`);
+            const charCountEl = document.getElementById(`char-count-${problemId}`);
+            const errorEl = document.getElementById(`error-${problemId}`);
+
+            const result = validateSequence(textarea.value, problemId);
+            charCountEl.textContent = `${result.length} residues`;
+            charCountEl.className = 'char-count';
+
+            if (result.tooLong) {
+                charCountEl.classList.add('error');
+                charCountEl.textContent += ` (max ${result.maxLen})`;
+            } else if (result.length > result.maxLen * 0.9) {
+                charCountEl.classList.add('warning');
+            }
+
+            if (result.invalidChars.length > 0) {
+                errorEl.textContent = `Invalid characters: ${result.invalidChars.join(', ')}`;
+                errorEl.style.display = 'block';
+            } else if (result.tooShort) {
+                errorEl.textContent = `Sequence too short (minimum ${result.minLen} residues)`;
+                errorEl.style.display = 'block';
+            } else {
+                errorEl.style.display = 'none';
+            }
+        }
+
         function setLoading(loading) {
             submitBtn.disabled = loading;
-            btnText.textContent = loading ? 'Submitting...' : 'Submit Sequence';
+            btnText.textContent = loading ? 'Submitting...' : 'Submit All Sequences';
             btnSpinner.style.display = loading ? 'block' : 'none';
         }
 
         function showSuccess(message) {
-            successText.textContent = message;
+            successText.innerHTML = message;
             successMessage.style.display = 'block';
             errorMessage.style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function showError(message) {
             errorText.textContent = message;
             errorMessage.style.display = 'block';
             successMessage.style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function hideMessages() {
@@ -397,28 +627,61 @@
             errorMessage.style.display = 'none';
         }
 
-        // Update character count
-        sequenceInput.addEventListener('input', function() {
-            const result = validateSequence(this.value);
-            charCount.textContent = `${result.length} residues`;
-            charCount.className = 'char-count';
+        // Structure Viewer Modal
+        function openViewerModal(problemId, problemName, targetFile) {
+            const modal = document.getElementById('viewer-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalDownload = document.getElementById('modal-download');
+            const viewerContainer = document.getElementById('modal-viewer');
 
-            if (result.tooLong) {
-                charCount.classList.add('error');
-                charCount.textContent += ` (max ${MAX_LENGTH})`;
-            } else if (result.length > MAX_LENGTH * 0.9) {
-                charCount.classList.add('warning');
+            modalTitle.textContent = `${problemName} - Target Structure`;
+            modalDownload.href = `./targets/${targetFile}`;
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+
+            // Clear previous viewer
+            viewerContainer.innerHTML = '';
+
+            // Initialize viewer
+            viewerInstance = new PDBeMolstarPlugin();
+            const options = {
+                customData: {
+                    url: `./targets/${targetFile}`,
+                    format: 'pdb',
+                    binary: false
+                },
+                bgColor: { r: 22, g: 33, b: 62 },
+                hideControls: false,
+                sequencePanel: true,
+                landscape: true
+            };
+
+            viewerInstance.render(viewerContainer, options);
+        }
+
+        function closeViewerModal() {
+            const modal = document.getElementById('viewer-modal');
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+
+            if (viewerInstance) {
+                viewerInstance = null;
             }
+            document.getElementById('modal-viewer').innerHTML = '';
+        }
 
-            const errorEl = document.getElementById('sequence_error');
-            if (result.invalidChars.length > 0) {
-                errorEl.textContent = `Invalid characters: ${result.invalidChars.join(', ')}`;
-                errorEl.style.display = 'block';
-            } else if (result.tooShort && result.length > 0) {
-                errorEl.textContent = `Sequence too short (minimum ${MIN_LENGTH} residues)`;
-                errorEl.style.display = 'block';
-            } else {
-                errorEl.style.display = 'none';
+        // Close modal on overlay click
+        document.getElementById('viewer-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeViewerModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeViewerModal();
             }
         });
 
@@ -429,8 +692,6 @@
 
             const participantId = document.getElementById('participant_id').value.trim();
             const email = document.getElementById('email').value.trim();
-            const sequenceName = document.getElementById('sequence_name').value.trim();
-            const sequence = sequenceInput.value;
 
             // Validate all fields
             let valid = true;
@@ -451,17 +712,26 @@
                 document.getElementById('email_error').style.display = 'none';
             }
 
-            if (!validateId(sequenceName)) {
-                document.getElementById('sequence_name_error').textContent = 'Invalid sequence name';
-                document.getElementById('sequence_name_error').style.display = 'block';
-                valid = false;
-            } else {
-                document.getElementById('sequence_name_error').style.display = 'none';
-            }
+            // Collect and validate all sequences
+            const sequences = {};
+            for (const problem of problemsConfig.problems) {
+                const textarea = document.getElementById(`sequence_${problem.id}`);
+                const errorEl = document.getElementById(`error-${problem.id}`);
 
-            const seqResult = validateSequence(sequence);
-            if (!seqResult.valid) {
-                valid = false;
+                if (!textarea.value.trim()) {
+                    errorEl.textContent = 'Sequence is required';
+                    errorEl.style.display = 'block';
+                    valid = false;
+                    continue;
+                }
+
+                const result = validateSequence(textarea.value, problem.id);
+                if (!result.valid) {
+                    valid = false;
+                    // Error already shown by validateSequence
+                } else {
+                    sequences[problem.id] = result.cleaned;
+                }
             }
 
             if (!valid) return;
@@ -478,18 +748,23 @@
                     body: JSON.stringify({
                         participant_id: participantId,
                         email: email,
-                        sequence_name: sequenceName,
-                        sequence: seqResult.cleaned
+                        sequences: sequences
                     })
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
-                    showSuccess('Your sequence has been submitted and will be processed shortly. Check your email for results!');
+                    showSuccess(`Your sequences have been submitted successfully!<br><strong>Submission ID:</strong> ${data.submission_id}<br><strong>Check your email for results!</strong>`);
                     form.reset();
-                    charCount.textContent = '0 residues';
-                    charCount.className = 'char-count';
+                    // Reset all char counts
+                    for (const problem of problemsConfig.problems) {
+                        const charCountEl = document.getElementById(`char-count-${problem.id}`);
+                        if (charCountEl) {
+                            charCountEl.textContent = '0 residues';
+                            charCountEl.className = 'char-count';
+                        }
+                    }
                 } else {
                     showError(data.error || 'Submission failed. Please try again.');
                 }
@@ -503,11 +778,25 @@
 
         function clearForm() {
             form.reset();
-            charCount.textContent = '0 residues';
-            charCount.className = 'char-count';
-            document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
             hideMessages();
+            if (problemsConfig) {
+                for (const problem of problemsConfig.problems) {
+                    const charCountEl = document.getElementById(`char-count-${problem.id}`);
+                    const errorEl = document.getElementById(`error-${problem.id}`);
+                    if (charCountEl) {
+                        charCountEl.textContent = '0 residues';
+                        charCountEl.className = 'char-count';
+                    }
+                    if (errorEl) {
+                        errorEl.style.display = 'none';
+                    }
+                }
+            }
+            document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
         }
+
+        // Initialize
+        loadProblems();
     </script>
 </body>
 </html>

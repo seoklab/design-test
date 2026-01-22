@@ -1,7 +1,8 @@
 /**
  * Netlify Function for Protein Competition Submissions
  *
- * Receives form submissions and creates GitHub Issues.
+ * Receives form submissions with multiple sequences and triggers
+ * a GitHub repository_dispatch event for private processing.
  *
  * Environment variables (set in Netlify dashboard):
  * - GITHUB_TOKEN: Personal Access Token with 'repo' scope
@@ -30,26 +31,17 @@ function validateId(id) {
   return typeof id === 'string' && /^[A-Za-z0-9_-]+$/.test(id) && id.length > 0 && id.length <= 100;
 }
 
-async function createGitHubIssue(participantId, email, sequenceName, sequence) {
-  const issueTitle = `[Submission] ${sequenceName} by ${participantId}`;
-  const issueBody = `### Participant ID
+function generateSubmissionId() {
+  // Generate a unique submission ID: timestamp + random string
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 8);
+  return `sub_${timestamp}_${random}`;
+}
 
-${participantId}
-
-### Email
-
-${email}
-
-### Sequence Name
-
-${sequenceName}
-
-### Amino Acid Sequence
-
-${sequence}`;
-
+async function triggerWorkflow(submissionId, participantId, email, sequences) {
+  // Trigger a repository_dispatch event to process the submission privately
   const response = await fetch(
-    `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/issues`,
+    `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/dispatches`,
     {
       method: 'POST',
       headers: {
@@ -60,9 +52,14 @@ ${sequence}`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        title: issueTitle,
-        body: issueBody,
-        labels: ['submission']
+        event_type: 'new_submission',
+        client_payload: {
+          submission_id: submissionId,
+          participant_id: participantId,
+          email: email,
+          sequences: sequences,
+          submitted_at: new Date().toISOString()
+        }
       })
     }
   );
@@ -72,7 +69,8 @@ ${sequence}`;
     throw new Error(`GitHub API error: ${response.status} - ${error}`);
   }
 
-  return await response.json();
+  // repository_dispatch returns 204 No Content on success
+  return { success: true };
 }
 
 exports.handler = async (event, context) => {
@@ -100,7 +98,7 @@ exports.handler = async (event, context) => {
 
   try {
     const body = JSON.parse(event.body);
-    const { participant_id, email, sequence_name, sequence } = body;
+    const { participant_id, email, sequences } = body;
 
     // Validate participant_id
     if (!validateId(participant_id)) {
@@ -126,47 +124,68 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Validate sequence_name
-    if (!validateId(sequence_name)) {
+    // Validate sequences object
+    if (!sequences || typeof sequences !== 'object' || Object.keys(sequences).length === 0) {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
           success: false,
-          error: 'Invalid sequence name. Use only letters, numbers, underscores, and hyphens.'
+          error: 'No sequences provided.'
         })
       };
     }
 
-    // Validate sequence
-    const seqResult = validateSequence(sequence || '');
-    if (!seqResult.valid) {
-      let errorMsg = 'Invalid sequence.';
-      if (seqResult.invalidChars.length > 0) {
-        errorMsg = `Invalid amino acids: ${seqResult.invalidChars.join(', ')}`;
-      } else if (seqResult.tooShort) {
-        errorMsg = `Sequence too short. Minimum ${MIN_LENGTH} residues required.`;
-      } else if (seqResult.tooLong) {
-        errorMsg = `Sequence too long. Maximum ${MAX_LENGTH} residues allowed.`;
+    // Validate each sequence
+    const validatedSequences = {};
+    for (const [problemId, sequence] of Object.entries(sequences)) {
+      // Validate problem ID format
+      if (!validateId(problemId)) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: `Invalid problem ID: ${problemId}`
+          })
+        };
       }
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ success: false, error: errorMsg })
-      };
+
+      // Validate sequence
+      const seqResult = validateSequence(sequence || '');
+      if (!seqResult.valid) {
+        let errorMsg = `Invalid sequence for ${problemId}.`;
+        if (seqResult.invalidChars.length > 0) {
+          errorMsg = `${problemId}: Invalid amino acids: ${seqResult.invalidChars.join(', ')}`;
+        } else if (seqResult.tooShort) {
+          errorMsg = `${problemId}: Sequence too short. Minimum ${MIN_LENGTH} residues required.`;
+        } else if (seqResult.tooLong) {
+          errorMsg = `${problemId}: Sequence too long. Maximum ${MAX_LENGTH} residues allowed.`;
+        }
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: errorMsg })
+        };
+      }
+
+      validatedSequences[problemId] = seqResult.cleaned;
     }
 
-    // Create GitHub issue
-    const issue = await createGitHubIssue(participant_id, email, sequence_name, seqResult.cleaned);
+    // Generate unique submission ID
+    const submissionId = generateSubmissionId();
+
+    // Trigger GitHub workflow via repository_dispatch
+    await triggerWorkflow(submissionId, participant_id, email, validatedSequences);
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
-        message: 'Submission received! Your sequence will be processed shortly.',
-        issue_number: issue.number,
-        issue_url: issue.html_url
+        message: 'Submission received! Your sequences will be processed shortly.',
+        submission_id: submissionId,
+        problem_count: Object.keys(validatedSequences).length
       })
     };
 

@@ -47,7 +47,7 @@
             position: relative;
         }
         .sidebar {
-            width: 300px;
+            width: 320px;
             background: #16213e;
             padding: 1.5rem;
             overflow-y: auto;
@@ -100,10 +100,16 @@
             cursor: pointer;
             text-align: center;
             text-decoration: none;
-            margin-top: 1rem;
+            margin-top: 0.5rem;
         }
         .download-btn:hover {
             background: #ff6b6b;
+        }
+        .download-btn.secondary {
+            background: #0f3460;
+        }
+        .download-btn.secondary:hover {
+            background: #1a4a7a;
         }
         .loading {
             display: flex;
@@ -116,6 +122,79 @@
             color: #e94560;
             padding: 2rem;
             text-align: center;
+        }
+
+        /* Problem selector for multi-problem results */
+        .problem-selector {
+            margin-bottom: 1rem;
+        }
+        .problem-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .problem-tab {
+            padding: 0.5rem 1rem;
+            background: #0f0f23;
+            border: 2px solid #2a3f5f;
+            border-radius: 6px;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .problem-tab:hover {
+            border-color: #65cbf3;
+            color: #fff;
+        }
+        .problem-tab.active {
+            background: #e94560;
+            border-color: #e94560;
+            color: #fff;
+        }
+
+        /* Files list */
+        .files-list {
+            margin-top: 1rem;
+        }
+        .files-list h3 {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-bottom: 0.5rem;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            background: #0f0f23;
+            border-radius: 4px;
+            margin-bottom: 0.25rem;
+            font-size: 0.8rem;
+        }
+        .file-item a {
+            color: #65cbf3;
+            text-decoration: none;
+        }
+        .file-item a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 40vh;
+                border-left: none;
+                border-top: 1px solid #0f3460;
+            }
+            .viewer-panel {
+                height: 60vh;
+            }
         }
     </style>
 </head>
@@ -133,21 +212,21 @@
         </div>
 
         <div class="sidebar">
+            <div id="problem-selector" class="problem-selector" style="display: none;">
+                <h2>Select Problem</h2>
+                <div class="problem-tabs" id="problem-tabs"></div>
+            </div>
+
             <h2>Structure Info</h2>
 
             <div class="info-card">
-                <h3>Sequence Name</h3>
-                <p id="sequence-name">-</p>
+                <h3>Participant</h3>
+                <p id="participant-id">-</p>
             </div>
 
-            <div class="info-card">
-                <h3>Sequence Length</h3>
-                <p id="sequence-length">-</p>
-            </div>
-
-            <div class="info-card">
-                <h3>Mean pLDDT</h3>
-                <p id="mean-plddt">-</p>
+            <div class="info-card" id="problem-info-card" style="display: none;">
+                <h3>Current Problem</h3>
+                <p id="current-problem">-</p>
             </div>
 
             <div class="info-card">
@@ -172,8 +251,12 @@
                 </div>
             </div>
 
-            <a id="download-cif" class="download-btn" href="#" download>Download Structure (CIF)</a>
-            <a id="download-json" class="download-btn" href="#" download style="background: #0f3460;">Download Metadata (JSON)</a>
+            <a id="download-current" class="download-btn" href="#" download>Download Current Structure</a>
+
+            <div class="files-list" id="files-list">
+                <h3>All Files</h3>
+                <div id="files-container"></div>
+            </div>
         </div>
     </div>
 
@@ -183,10 +266,15 @@
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
 
-        // Base URL for results - use relative URL from current page
+        // Base URL for results
         const RESULTS_BASE_URL = new URL('./results/', window.location.href).href;
 
-        async function loadStructure() {
+        let metadata = null;
+        let submission = null;
+        let viewerInstance = null;
+        let currentProblem = null;
+
+        async function loadResults() {
             if (!token) {
                 document.getElementById('molstar-viewer').innerHTML =
                     '<div class="error">No token provided. Please use the link from your submission.</div>';
@@ -202,61 +290,154 @@
                     throw new Error('Results not found. The link may have expired or be invalid.');
                 }
 
-                const metadata = await metadataResponse.json();
+                metadata = await metadataResponse.json();
 
                 // Load submission info
                 const submissionUrl = `${RESULTS_BASE_URL}${token}/submission.json`;
                 const submissionResponse = await fetch(submissionUrl);
-                const submission = await submissionResponse.json();
+                submission = await submissionResponse.json();
 
-                // Update UI
+                // Update header
                 document.getElementById('submission-info').textContent =
-                    `Submission: ${submission.participant_id} / ${submission.sequence_name}`;
-                document.getElementById('sequence-name').textContent = submission.sequence_name;
-                document.getElementById('sequence-length').textContent = `${submission.sequence_length} residues`;
+                    `Submission: ${submission.participant_id || submission.submission_id}`;
+                document.getElementById('participant-id').textContent =
+                    submission.participant_id || 'Unknown';
 
-                // Find CIF file
-                const cifFile = metadata.files.find(f => f.endsWith('.cif'));
-                if (!cifFile) {
-                    throw new Error('No structure file found in results.');
+                // Check if this is a multi-problem result
+                if (metadata.problems && Object.keys(metadata.problems).length > 0) {
+                    setupMultiProblemView();
+                } else {
+                    setupSingleProblemView();
                 }
 
-                const cifUrl = `${RESULTS_BASE_URL}${token}/${cifFile}`;
-
-                // Set download links
-                document.getElementById('download-cif').href = cifUrl;
-                document.getElementById('download-json').href = submissionUrl;
-
-                // Initialize PDBe Molstar viewer
-                const viewerContainer = document.getElementById('molstar-viewer');
-                viewerContainer.innerHTML = '';
-
-                const viewerInstance = new PDBeMolstarPlugin();
-
-                const options = {
-                    customData: {
-                        url: cifUrl,
-                        format: 'cif',
-                        binary: false
-                    },
-                    alphafoldView: true,
-                    bgColor: { r: 26, g: 26, b: 46 },
-                    hideControls: false,
-                    sequencePanel: true,
-                    landscape: true
-                };
-
-                viewerInstance.render(viewerContainer, options);
+                // Display file list
+                displayFileList();
 
             } catch (error) {
                 document.getElementById('molstar-viewer').innerHTML =
                     `<div class="error">${error.message}</div>`;
-                console.error('Error loading structure:', error);
+                console.error('Error loading results:', error);
             }
         }
 
+        function setupMultiProblemView() {
+            const problems = Object.keys(metadata.problems).sort();
+
+            // Show problem selector
+            const selectorDiv = document.getElementById('problem-selector');
+            const tabsDiv = document.getElementById('problem-tabs');
+            selectorDiv.style.display = 'block';
+            document.getElementById('problem-info-card').style.display = 'block';
+
+            // Create tabs for each problem
+            tabsDiv.innerHTML = problems.map(problemId => {
+                const displayName = problemId.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+                return `<button class="problem-tab" data-problem="${problemId}">${displayName}</button>`;
+            }).join('');
+
+            // Add click handlers
+            tabsDiv.querySelectorAll('.problem-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const problemId = tab.dataset.problem;
+                    selectProblem(problemId);
+                });
+            });
+
+            // Select first problem by default
+            if (problems.length > 0) {
+                selectProblem(problems[0]);
+            }
+        }
+
+        function setupSingleProblemView() {
+            // Find the CIF file
+            const cifFile = metadata.files.find(f => f.endsWith('.cif'));
+            if (!cifFile) {
+                throw new Error('No structure file found in results.');
+            }
+
+            loadStructure(cifFile);
+
+            // Set download link
+            document.getElementById('download-current').href = `${RESULTS_BASE_URL}${token}/${cifFile}`;
+        }
+
+        function selectProblem(problemId) {
+            currentProblem = problemId;
+
+            // Update tab states
+            document.querySelectorAll('.problem-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.problem === problemId);
+            });
+
+            // Update current problem display
+            const displayName = problemId.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+            document.getElementById('current-problem').textContent = displayName;
+
+            // Find the model file for this problem
+            const problemFiles = metadata.problems[problemId]?.files || [];
+            const cifFile = problemFiles.find(f => f.endsWith('_model.cif')) ||
+                           metadata.files.find(f => f.includes(problemId) && f.endsWith('.cif'));
+
+            if (cifFile) {
+                loadStructure(cifFile);
+                document.getElementById('download-current').href = `${RESULTS_BASE_URL}${token}/${cifFile}`;
+            } else {
+                document.getElementById('molstar-viewer').innerHTML =
+                    `<div class="error">No structure file found for ${displayName}.</div>`;
+            }
+        }
+
+        function loadStructure(cifFile) {
+            const viewerContainer = document.getElementById('molstar-viewer');
+            viewerContainer.innerHTML = '';
+
+            const cifUrl = `${RESULTS_BASE_URL}${token}/${cifFile}`;
+
+            viewerInstance = new PDBeMolstarPlugin();
+
+            const options = {
+                customData: {
+                    url: cifUrl,
+                    format: 'cif',
+                    binary: false
+                },
+                alphafoldView: true,
+                bgColor: { r: 26, g: 26, b: 46 },
+                hideControls: false,
+                sequencePanel: true,
+                landscape: true
+            };
+
+            viewerInstance.render(viewerContainer, options);
+        }
+
+        function displayFileList() {
+            const container = document.getElementById('files-container');
+
+            // Group files by type
+            const structures = metadata.files.filter(f => f.endsWith('.cif'));
+            const otherFiles = metadata.files.filter(f => !f.endsWith('.cif') && f !== 'submission.json' && f !== 'metadata.json');
+
+            let html = '';
+
+            // Structure files
+            structures.forEach(file => {
+                const url = `${RESULTS_BASE_URL}${token}/${file}`;
+                html += `<div class="file-item"><span>${file}</span><a href="${url}" download>Download</a></div>`;
+            });
+
+            // Other files (confidences, etc.)
+            otherFiles.forEach(file => {
+                const url = `${RESULTS_BASE_URL}${token}/${file}`;
+                html += `<div class="file-item"><span>${file}</span><a href="${url}" download>Download</a></div>`;
+            });
+
+            container.innerHTML = html || '<p style="color: #888; font-size: 0.85rem;">No additional files.</p>';
+        }
+
         // Load on page ready
-        loadStructure();
+        loadResults();
     </script>
 </body>
 </html>

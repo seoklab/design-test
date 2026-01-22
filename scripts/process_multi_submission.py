@@ -48,12 +48,31 @@ def get_problem_settings(config: dict, problem_id: str) -> dict:
     return {}
 
 
+def create_single_seq_msa(sequence: str, output_dir: Path, chain_id: str = "A") -> str:
+    """
+    Create a single-sequence MSA file (no alignment, just query) to skip MSA search.
+
+    Args:
+        sequence: Amino acid sequence
+        output_dir: Directory to save the MSA file
+        chain_id: Chain identifier for naming
+
+    Returns:
+        str: Absolute path to the created MSA file
+    """
+    msa_file = output_dir / f"single_seq_{chain_id}.a3m"
+    with open(msa_file, "w") as f:
+        f.write(f">query\n{sequence}\n")
+    return str(msa_file.resolve())
+
+
 def create_af3_input_monomer(
     job_name: str,
     sequence: str,
     msa_mode: str = "none",
     msa_file: str | None = None,
     model_seeds: list[int] | None = None,
+    output_dir: Path | None = None,
 ) -> dict:
     """
     Create AlphaFold3-compatible input JSON for monomer prediction.
@@ -64,6 +83,7 @@ def create_af3_input_monomer(
         msa_mode: "none", "search", or "precomputed"
         msa_file: Path to pre-computed MSA file (for msa_mode="precomputed")
         model_seeds: List of random seeds for model runs
+        output_dir: Directory for creating single-seq MSA files
 
     Returns:
         dict: AF3 input JSON structure
@@ -77,10 +97,10 @@ def create_af3_input_monomer(
     }
 
     # Apply MSA mode
-    if msa_mode == "none":
-        # Use null to skip MSA search entirely
-        protein_entry["unpairedMsa"] = None
-        protein_entry["pairedMsa"] = None
+    if msa_mode == "none" and output_dir:
+        # Create single-sequence MSA file to skip MSA search
+        single_msa = create_single_seq_msa(sequence, output_dir, "A")
+        protein_entry["unpairedMsaPath"] = single_msa
     elif msa_mode == "precomputed" and msa_file:
         protein_entry["unpairedMsaPath"] = msa_file
 
@@ -103,6 +123,7 @@ def create_af3_input_binder(
     target_msa_mode: str = "precomputed",
     target_msa_file: str | None = None,
     model_seeds: list[int] | None = None,
+    output_dir: Path | None = None,
 ) -> dict:
     """
     Create AlphaFold3-compatible input JSON for binder design.
@@ -115,6 +136,7 @@ def create_af3_input_binder(
         target_msa_mode: MSA mode for target ("precomputed" typically)
         target_msa_file: Path to pre-computed MSA for target
         model_seeds: List of random seeds for model runs
+        output_dir: Directory for creating single-seq MSA files
 
     Returns:
         dict: AF3 input JSON structure
@@ -127,18 +149,19 @@ def create_af3_input_binder(
         "id": "A",
         "sequence": binder_sequence,
     }
-    if binder_msa_mode == "none":
-        binder_entry["unpairedMsa"] = None
-        binder_entry["pairedMsa"] = None
+    if binder_msa_mode == "none" and output_dir:
+        # Create single-sequence MSA file to skip MSA search
+        single_msa = create_single_seq_msa(binder_sequence, output_dir, "A")
+        binder_entry["unpairedMsaPath"] = single_msa
 
     # Chain B: Given target (typically with pre-computed MSA)
     target_entry = {
         "id": "B",
         "sequence": target_sequence,
     }
-    if target_msa_mode == "none":
-        target_entry["unpairedMsa"] = None
-        target_entry["pairedMsa"] = None
+    if target_msa_mode == "none" and output_dir:
+        single_msa = create_single_seq_msa(target_sequence, output_dir, "B")
+        target_entry["unpairedMsaPath"] = single_msa
     elif target_msa_mode == "precomputed" and target_msa_file:
         target_entry["unpairedMsaPath"] = target_msa_file
 
@@ -246,6 +269,7 @@ def main():
                 binder_msa_mode=participant_msa_mode,
                 target_msa_mode="precomputed" if target_msa_file else "none",
                 target_msa_file=target_msa_file,
+                output_dir=problem_dir,
             )
             logger.info(f"  Created binder input: {len(sequence)} (binder) + {len(target_sequence)} (target) residues")
         else:
@@ -255,6 +279,7 @@ def main():
                 sequence=sequence,
                 msa_mode=msa_mode,
                 msa_file=msa_file,
+                output_dir=problem_dir,
             )
 
         af3_input_file = problem_dir / "af3_input.json"

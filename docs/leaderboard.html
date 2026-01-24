@@ -381,7 +381,7 @@
                 `;
             }
 
-            tableHeaders += `<th>View</th>`;
+            // tableHeaders += `<th>View</th>`;
 
             const tableRows = rankings.map(entry => {
                 const rankClass = entry.rank <= 3 ? `rank-${entry.rank}` : '';
@@ -411,7 +411,7 @@
                             <span class="metric-label">${formatMetricName(entry.primary_metric)}</span>
                         </td>
                         ${secondaryScores}
-                        <td><a class="view-link" href="viewer.html?token=${entry.token}">View</a></td>
+                        <!-- <td><a class="view-link" href="viewer.html?token=${entry.token}">View</a></td> -->
                     </tr>
                 `;
             }).join('');
@@ -459,7 +459,7 @@
                         <td class="score-cell">${entry.problems_completed}/${problemCount}</td>
                         <td class="score-cell primary">${entry.avg_rank_points.toFixed(1)}</td>
                         <td class="score-cell secondary">${problemRanks || '-'}</td>
-                        <td><a class="view-link" href="viewer.html?token=${entry.token}">View</a></td>
+                        <!-- <td><a class="view-link" href="viewer.html?token=${entry.token}">View</a></td> -->
                     </tr>
                 `;
             }).join('');
@@ -477,7 +477,7 @@
                             <th>Problems</th>
                             <th>Avg Points</th>
                             <th>Per-Problem Ranks</th>
-                            <th>View</th>
+                            <!-- <th>View</th> -->
                         </tr>
                     </thead>
                     <tbody>${tableRows}</tbody>

@@ -5,24 +5,25 @@
   "completed_problems": 5,
   "all_complete": true,
   "files": [
-    "admin_problem_1_summary_confidences.json",
     "admin_problem_1_confidences.json",
-    "admin_problem_2_ranking_scores.csv",
-    "admin_problem_1_ranking_scores.csv",
-    "admin_problem_4_ranking_scores.csv",
     "admin_problem_1_model.cif",
-    "admin_problem_5_summary_confidences.json",
-    "admin_problem_3_model.cif",
-    "admin_problem_2_summary_confidences.json",
-    "admin_problem_5_ranking_scores.csv",
+    "admin_problem_1_ranking_scores.csv",
+    "admin_problem_1_summary_confidences.json",
     "admin_problem_2_confidences.json",
-    "submission.json",
     "admin_problem_2_model.cif",
+    "admin_problem_2_ranking_scores.csv",
+    "admin_problem_2_summary_confidences.json",
+    "admin_problem_3_model.cif",
     "admin_problem_3_ranking_scores.csv",
+    "admin_problem_3_summary_confidences.json",
     "admin_problem_4_model.cif",
-    "admin_problem_5_model.cif",
+    "admin_problem_4_ranking_scores.csv",
     "admin_problem_4_summary_confidences.json",
-    "admin_problem_3_summary_confidences.json"
+    "admin_problem_5_evaluation.json",
+    "admin_problem_5_model.cif",
+    "admin_problem_5_ranking_scores.csv",
+    "admin_problem_5_summary_confidences.json",
+    "submission.json"
   ],
   "problems": {
     "problem_1": {
@@ -45,14 +46,12 @@
       "files": [
         "admin_problem_3_model.cif",
         "admin_problem_3_summary_confidences.json",
-        "admin_problem_3_summary_confidences.json",
         "admin_problem_3_ranking_scores.csv"
       ]
     },
     "problem_4": {
       "files": [
         "admin_problem_4_model.cif",
-        "admin_problem_4_summary_confidences.json",
         "admin_problem_4_summary_confidences.json",
         "admin_problem_4_ranking_scores.csv"
       ]
@@ -61,8 +60,8 @@
       "files": [
         "admin_problem_5_model.cif",
         "admin_problem_5_summary_confidences.json",
-        "admin_problem_5_summary_confidences.json",
-        "admin_problem_5_ranking_scores.csv"
+        "admin_problem_5_ranking_scores.csv",
+        "admin_problem_5_evaluation.json"
       ]
     }
   },

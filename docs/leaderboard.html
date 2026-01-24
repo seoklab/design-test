@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard - KIDDS 2026 Protein Competition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        .header {
+            background: #16213e;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #0f3460;
+        }
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 1.8rem;
+            color: #e94560;
+        }
+        .header-links {
+            display: flex;
+            gap: 1rem;
+        }
+        .header-links a {
+            color: #65cbf3;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .header-links a:hover {
+            text-decoration: underline;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .last-updated {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #0f3460;
+            padding-bottom: 1rem;
+        }
+        .tab {
+            padding: 0.75rem 1.25rem;
+            background: #0f0f23;
+            border: 2px solid #2a3f5f;
+            border-radius: 8px;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .tab:hover {
+            border-color: #65cbf3;
+            color: #fff;
+        }
+        .tab.active {
+            background: #e94560;
+            border-color: #e94560;
+            color: #fff;
+        }
+        .tab.overall {
+            background: #0f3460;
+            border-color: #0f3460;
+        }
+        .tab.overall.active {
+            background: #65cbf3;
+            border-color: #65cbf3;
+            color: #16213e;
+        }
+        .problem-type-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+        .problem-type-badge.monomer {
+            background: #2a3f5f;
+            color: #65cbf3;
+        }
+        .problem-type-badge.binder {
+            background: #4a2c5a;
+            color: #d4a5ff;
+        }
+        .panel {
+            display: none;
+        }
+        .panel.active {
+            display: block;
+        }
+        .panel-header {
+            margin-bottom: 1rem;
+        }
+        .panel-header h2 {
+            color: #e94560;
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+        }
+        .panel-header p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        .ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #16213e;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .ranking-table th,
+        .ranking-table td {
+            padding: 0.875rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #0f3460;
+        }
+        .ranking-table th {
+            background: #0f3460;
+            color: #65cbf3;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+        .ranking-table tr:last-child td {
+            border-bottom: none;
+        }
+        .ranking-table tr:hover {
+            background: #1f2f4f;
+        }
+        .rank-cell {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        .rank-1 { color: #ffd700; }
+        .rank-2 { color: #c0c0c0; }
+        .rank-3 { color: #cd7f32; }
+        .score-cell {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.95rem;
+        }
+        .score-cell.primary {
+            color: #65cbf3;
+            font-weight: 600;
+        }
+        .score-cell.secondary {
+            color: #888;
+        }
+        .view-link {
+            color: #e94560;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        .view-link:hover {
+            text-decoration: underline;
+        }
+        .participant-id {
+            font-weight: 500;
+        }
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: #888;
+        }
+        .metric-label {
+            font-size: 0.75rem;
+            color: #666;
+            display: block;
+            margin-top: 0.2rem;
+        }
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #888;
+        }
+        .error {
+            text-align: center;
+            padding: 2rem;
+            color: #e94560;
+            background: rgba(233, 69, 96, 0.1);
+            border-radius: 8px;
+        }
+
+        /* Overall rankings specific styles */
+        .overall-stats {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: #888;
+        }
+        .overall-stats span {
+            background: #0f0f23;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            .header-content {
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+            }
+            .ranking-table {
+                font-size: 0.85rem;
+            }
+            .ranking-table th,
+            .ranking-table td {
+                padding: 0.5rem;
+            }
+            .tabs {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>Protein Design Leaderboard</h1>
+            <div class="header-links">
+                <a href="index.html">Submit Sequences</a>
+                <a href="viewer.html">Structure Viewer</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <p class="last-updated" id="last-updated">Loading...</p>
+
+        <div class="tabs" id="tabs">
+            <button class="tab overall active" data-tab="overall">Overall Rankings</button>
+        </div>
+
+        <div id="panels">
+            <div class="panel active" id="panel-overall">
+                <div class="panel-header">
+                    <h2>Overall Rankings</h2>
+                    <p>Aggregate rankings across all problems. Score based on average placement.</p>
+                </div>
+                <div class="loading">Loading leaderboard data...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const LEADERBOARD_URL = './leaderboard_data.json';
+
+        let leaderboardData = null;
+
+        async function loadLeaderboard() {
+            try {
+                const response = await fetch(LEADERBOARD_URL);
+                if (!response.ok) {
+                    throw new Error('Failed to load leaderboard data');
+                }
+                leaderboardData = await response.json();
+                renderLeaderboard();
+            } catch (error) {
+                console.error('Error loading leaderboard:', error);
+                document.getElementById('panel-overall').innerHTML =
+                    '<div class="error">Failed to load leaderboard data. Rankings will appear once submissions are evaluated.</div>';
+            }
+        }
+
+        function renderLeaderboard() {
+            if (!leaderboardData) return;
+
+            // Update last updated
+            const lastUpdated = new Date(leaderboardData.last_updated);
+            document.getElementById('last-updated').textContent =
+                `Last updated: ${lastUpdated.toLocaleString()}`;
+
+            // Render tabs
+            const tabsContainer = document.getElementById('tabs');
+            const panelsContainer = document.getElementById('panels');
+
+            // Create problem tabs
+            const problems = leaderboardData.problems || {};
+            const sortedProblems = Object.keys(problems).sort();
+
+            sortedProblems.forEach(problemId => {
+                const problem = problems[problemId];
+                const tab = document.createElement('button');
+                tab.className = 'tab';
+                tab.dataset.tab = problemId;
+
+                const typeBadge = `<span class="problem-type-badge ${problem.type}">${problem.type}</span>`;
+                tab.innerHTML = problem.name.replace(/\s*\([^)]*\)/, '') + typeBadge;
+
+                tab.addEventListener('click', () => selectTab(problemId));
+                tabsContainer.appendChild(tab);
+
+                // Create panel
+                const panel = document.createElement('div');
+                panel.className = 'panel';
+                panel.id = `panel-${problemId}`;
+                panel.innerHTML = renderProblemPanel(problemId, problem);
+                panelsContainer.appendChild(panel);
+            });
+
+            // Render overall panel
+            document.getElementById('panel-overall').innerHTML = renderOverallPanel();
+
+            // Add click handler for overall tab
+            document.querySelector('.tab.overall').addEventListener('click', () => selectTab('overall'));
+        }
+
+        function selectTab(tabId) {
+            // Update tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === tabId);
+            });
+
+            // Update panels
+            document.querySelectorAll('.panel').forEach(panel => {
+                panel.classList.toggle('active', panel.id === `panel-${tabId}`);
+            });
+        }
+
+        function renderProblemPanel(problemId, problem) {
+            const rankings = problem.rankings || [];
+
+            if (rankings.length === 0) {
+                return `
+                    <div class="panel-header">
+                        <h2>${problem.name}</h2>
+                        <p>Primary metric: ${formatMetricName(problem.primary_metric)}</p>
+                    </div>
+                    <div class="no-data">No submissions yet for this problem.</div>
+                `;
+            }
+
+            const isBinder = problem.type === 'binder';
+
+            let tableHeaders = `
+                <th>Rank</th>
+                <th>Participant</th>
+                <th>Primary Score</th>
+            `;
+
+            if (isBinder) {
+                tableHeaders += `
+                    <th>ipTM</th>
+                    <th>Binder TM</th>
+                    <th>Binder RMSD</th>
+                    <th>Complex TM</th>
+                `;
+            } else {
+                tableHeaders += `
+                    <th>bb-lDDT</th>
+                    <th>TM-score</th>
+                    <th>RMSD</th>
+                `;
+            }
+
+            tableHeaders += `<th>View</th>`;
+
+            const tableRows = rankings.map(entry => {
+                const rankClass = entry.rank <= 3 ? `rank-${entry.rank}` : '';
+
+                let secondaryScores = '';
+                if (isBinder) {
+                    secondaryScores = `
+                        <td class="score-cell secondary">${formatScore(entry.iptm)}</td>
+                        <td class="score-cell secondary">${formatScore(entry.binder_tm)}</td>
+                        <td class="score-cell secondary">${formatScore(entry.binder_rmsd)}</td>
+                        <td class="score-cell secondary">${formatScore(entry.complex_tm)}</td>
+                    `;
+                } else {
+                    secondaryScores = `
+                        <td class="score-cell secondary">${formatScore(entry.bb_lddt)}</td>
+                        <td class="score-cell secondary">${formatScore(entry.tm_score)}</td>
+                        <td class="score-cell secondary">${formatScore(entry.rmsd)}</td>
+                    `;
+                }
+
+                return `
+                    <tr>
+                        <td class="rank-cell ${rankClass}">#${entry.rank}</td>
+                        <td class="participant-id">${escapeHtml(entry.participant_id)}</td>
+                        <td class="score-cell primary">
+                            ${formatScore(entry.primary_score)}
+                            <span class="metric-label">${formatMetricName(entry.primary_metric)}</span>
+                        </td>
+                        ${secondaryScores}
+                        <td><a class="view-link" href="viewer.html?token=${entry.token}">View</a></td>
+                    </tr>
+                `;
+            }).join('');
+
+            return `
+                <div class="panel-header">
+                    <h2>${problem.name}</h2>
+                    <p>Primary metric: ${formatMetricName(problem.primary_metric)} | ${rankings.length} submissions</p>
+                </div>
+                <table class="ranking-table">
+                    <thead><tr>${tableHeaders}</tr></thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            `;
+        }
+
+        function renderOverallPanel() {
+            const rankings = leaderboardData.overall_rankings || [];
+
+            if (rankings.length === 0) {
+                return `
+                    <div class="panel-header">
+                        <h2>Overall Rankings</h2>
+                        <p>Aggregate rankings across all problems.</p>
+                    </div>
+                    <div class="no-data">No submissions yet. Rankings will appear once results are evaluated.</div>
+                `;
+            }
+
+            const problemCount = Object.keys(leaderboardData.problems || {}).length;
+
+            const tableRows = rankings.map(entry => {
+                const rankClass = entry.rank <= 3 ? `rank-${entry.rank}` : '';
+
+                // Show problem-specific ranks
+                const problemRanks = Object.entries(entry.problem_ranks || {})
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([pid, rank]) => `P${pid.replace('problem_', '')}:#${rank}`)
+                    .join(', ');
+
+                return `
+                    <tr>
+                        <td class="rank-cell ${rankClass}">#${entry.rank}</td>
+                        <td class="participant-id">${escapeHtml(entry.participant_id)}</td>
+                        <td class="score-cell">${entry.problems_completed}/${problemCount}</td>
+                        <td class="score-cell primary">${entry.avg_rank_points.toFixed(1)}</td>
+                        <td class="score-cell secondary">${problemRanks || '-'}</td>
+                        <td><a class="view-link" href="viewer.html?token=${entry.token}">View</a></td>
+                    </tr>
+                `;
+            }).join('');
+
+            return `
+                <div class="panel-header">
+                    <h2>Overall Rankings</h2>
+                    <p>Aggregate rankings based on average placement across all problems. Higher points = better average rank.</p>
+                </div>
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Participant</th>
+                            <th>Problems</th>
+                            <th>Avg Points</th>
+                            <th>Per-Problem Ranks</th>
+                            <th>View</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            `;
+        }
+
+        function formatScore(value) {
+            if (value === null || value === undefined) return '-';
+            if (typeof value === 'number') {
+                return value.toFixed(3);
+            }
+            return String(value);
+        }
+
+        function formatMetricName(metric) {
+            const names = {
+                'bb_lddt': 'bb-lDDT',
+                'lddt': 'lDDT',
+                'tm_score': 'TM-score',
+                'ptm': 'pTM',
+                'iptm': 'ipTM',
+                'ranking_score': 'Ranking Score',
+                'dockq': 'DockQ',
+                'ilddt': 'iLDDT',
+                'chain_pair_iptm': 'ipTM'
+            };
+            return names[metric] || metric || '-';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize
+        loadLeaderboard();
+    </script>
+</body>
+</html>

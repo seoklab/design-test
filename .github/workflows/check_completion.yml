@@ -212,11 +212,78 @@ jobs:
 
           echo "results_updated=$RESULTS_UPDATED" >> $GITHUB_OUTPUT
 
+      - name: Update leaderboard
+        if: steps.check.outputs.results_updated == 'true'
+        run: |
+          echo "Updating leaderboard data..."
+
+          # Define reference files for each problem
+          TARGETS_DIR="${GITHUB_WORKSPACE}/docs/targets"
+          RESULTS_DIR="${GITHUB_WORKSPACE}/docs/results"
+
+          declare -A PROBLEM_REFS=(
+            ["problem_1"]="3v86_bb.pdb:monomer"
+            ["problem_2"]="4r80_bb.pdb:monomer"
+            ["problem_3"]="1qys_bb.pdb:monomer"
+            ["problem_4"]="6wi5_bb.pdb:monomer"
+            ["problem_5"]="binder_problem_9bk5.pdb:binder"
+          )
+
+          # Run evaluation for each result directory
+          for token_dir in ${RESULTS_DIR}/*/; do
+            [ ! -d "$token_dir" ] && continue
+            TOKEN=$(basename "$token_dir")
+            [ "$TOKEN" = ".gitkeep" ] && continue
+
+            # Get participant ID
+            SUBMISSION_FILE="${token_dir}/submission.json"
+            [ ! -f "$SUBMISSION_FILE" ] && continue
+
+            PARTICIPANT_ID=$(python3 -c "import json; print(json.load(open('$SUBMISSION_FILE')).get('participant_id', 'unknown'))" 2>/dev/null || echo "unknown")
+
+            # Check each problem
+            for problem_id in problem_1 problem_2 problem_3 problem_4 problem_5; do
+              REF_INFO="${PROBLEM_REFS[$problem_id]}"
+              REF_FILE="${REF_INFO%:*}"
+              PROBLEM_TYPE="${REF_INFO#*:}"
+
+              # Find model file
+              MODEL_FILE=$(find "$token_dir" -name "*${problem_id}_model.cif" 2>/dev/null | head -1)
+              [ -z "$MODEL_FILE" ] && continue
+
+              # Check if already evaluated
+              EVAL_FILE="${token_dir}/${PARTICIPANT_ID}_${problem_id}_evaluation.json"
+              [ -f "$EVAL_FILE" ] && continue
+
+              echo "Evaluating $TOKEN / $problem_id..."
+
+              # Run evaluation using TMalign + Python lDDT
+              python3 scripts/evaluate_structure.py \
+                --model "$MODEL_FILE" \
+                --reference "${TARGETS_DIR}/${REF_FILE}" \
+                --problem-id "$problem_id" \
+                --problem-type "$PROBLEM_TYPE" \
+                --participant-id "$PARTICIPANT_ID" \
+                --token "$TOKEN" \
+                --result-dir "$token_dir" \
+                --output "$EVAL_FILE" || echo "Warning: Evaluation failed for $TOKEN/$problem_id"
+            done
+          done
+
+          # Update leaderboard
+          echo "Regenerating leaderboard..."
+          python3 scripts/update_leaderboard.py \
+            --results-dir "${RESULTS_DIR}" \
+            --config "${GITHUB_WORKSPACE}/docs/targets/config.json" \
+            --output "${GITHUB_WORKSPACE}/docs/leaderboard_data.json"
+
+          echo "Leaderboard update complete"
+
       - name: Commit and push results
         if: steps.check.outputs.results_updated == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/results/
+          git add docs/results/ docs/leaderboard_data.json
           git diff --staged --quiet || git commit -m "Add completed results [skip ci]"
           git push

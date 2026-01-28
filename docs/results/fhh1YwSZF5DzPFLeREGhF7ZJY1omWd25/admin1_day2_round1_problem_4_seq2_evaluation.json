@@ -5,7 +5,7 @@
   "token": "fhh1YwSZF5DzPFLeREGhF7ZJY1omWd25",
   "model_file": "admin1_day2_round1_problem_4_seq2_model.cif",
   "reference_file": "PepBinder1-scaffold.pdb",
-  "evaluated_at": "2026-01-28T02:52:01.730560Z",
+  "evaluated_at": "2026-01-28T06:46:08.379274Z",
   "metrics": {
     "tm_score": 0.05996,
     "tm_score_ref": null,
@@ -21,15 +21,33 @@
     "complex_rmsd": 3.7,
     "complex_aligned_length": 364
   },
-  "af3_metrics": {},
+  "af3_metrics": {
+    "ptm": 0.63,
+    "iptm": 0.35,
+    "ranking_score": 0.53,
+    "chain_pair_iptm": [
+      [
+        0.17,
+        0.35
+      ],
+      [
+        0.35,
+        0.64
+      ]
+    ],
+    "fraction_disordered": 0.23
+  },
   "binder_metrics": {
-    "binder_tm_score": null,
-    "binder_rmsd": null,
-    "binder_aligned_length": null
+    "binder_tm_score": 0.48505,
+    "binder_rmsd": 1.47,
+    "binder_aligned_length": 18,
+    "binder_lddt": 0.915,
+    "binder_model_ca": 30,
+    "binder_ref_ca": 30
   },
   "interface_metrics": {
     "error": "Chain length mismatch - cannot compute interface lDDT"
   },
-  "primary_score": null,
-  "primary_metric": "ranking_score"
+  "primary_score": 0.17,
+  "primary_metric": "iptm"
 }

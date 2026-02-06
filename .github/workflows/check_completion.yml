@@ -1,0 +1,388 @@
+name: Check Job Completion
+
+on:
+  # Disabled - competition ended
+  # schedule:
+  #   - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check-jobs:
+    runs-on: [self-hosted, galaxy4]
+    permissions:
+      contents: write
+    env:
+      SUBMISSIONS_BASE: /data/galaxy4/user/j2ho/kidds2026/protein-competition/submissions
+      PUBLIC_RESULTS: /data/galaxy4/user/j2ho/kidds2026/protein-competition/public_results
+      SITE_URL: https://kidds2026.netlify.app
+      ADMIN_EMAILS: "oilbeen@snu.ac.kr,j2hosim@snu.ac.kr,hahnbeom@gmail.com"
+      # Set to "true" for email after each problem (uses more Netlify deploys)
+      # Set to "false" for single email when all problems complete (default)
+      INCREMENTAL_NOTIFICATIONS: "false"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check and package completed submissions
+        id: check
+        run: |
+          RESULTS_UPDATED=false
+
+          # Process all submissions (directories with status.json)
+          for dir in ${SUBMISSIONS_BASE}/*/; do
+            [ ! -d "$dir" ] && continue
+
+            STATUS_FILE="${dir}status.json"
+            [ ! -f "$STATUS_FILE" ] && continue
+
+            # Read status
+            STATUS=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('status', 'unknown'))" 2>/dev/null || echo "unknown")
+
+            # Skip if already completed or notified_partial or notified_failed
+            # Note: "packaged" status means results are ready but not yet in docs/results/ - don't skip
+            [ "$STATUS" = "completed" ] || [ "$STATUS" = "notified_partial" ] || [ "$STATUS" = "notified_failed" ] && continue
+
+            SUBMISSION_ID=$(basename "$dir")
+            echo "Checking $SUBMISSION_ID (status: $STATUS)..."
+
+            # Get submission info
+            SUBMISSION_FILE="$dir/submission.json"
+            EMAIL=$(python3 -c "import json; print(json.load(open('$SUBMISSION_FILE')).get('email', ''))" 2>/dev/null || echo "")
+            PARTICIPANT_ID=$(python3 -c "import json; print(json.load(open('$SUBMISSION_FILE')).get('participant_id', 'unknown'))" 2>/dev/null || echo "unknown")
+
+            # Check for multi-problem submission
+            PROBLEM_DIRS=$(find "$dir" -maxdepth 1 -type d -name "problem_*" 2>/dev/null | sort)
+            PROBLEM_COUNT=0
+            [ -n "$PROBLEM_DIRS" ] && PROBLEM_COUNT=$(echo "$PROBLEM_DIRS" | wc -l | tr -d ' ')
+
+            if [ "$PROBLEM_COUNT" -gt 0 ]; then
+              # Multi-problem submission
+              TOTAL_PROBLEMS=$(python3 -c "import json; d=json.load(open('$SUBMISSION_FILE')); print(len(d.get('sequences', {})))" 2>/dev/null || echo "$PROBLEM_COUNT")
+
+              # Get already notified problems from status
+              NOTIFIED_PROBLEMS=$(python3 -c "import json; print(','.join(json.load(open('$STATUS_FILE')).get('notified_problems', [])))" 2>/dev/null || echo "")
+
+              COMPLETED_LIST=""
+              FAILED_LIST=""
+              PENDING_LIST=""
+              NEW_COMPLETED_LIST=""
+              COMPLETED_COUNT=0
+              FAILED_COUNT=0
+
+              for problem_dir in $PROBLEM_DIRS; do
+                [ ! -d "$problem_dir" ] && continue
+                PROBLEM_ID=$(basename "$problem_dir")
+
+                # Check for seq_* subdirectories (multi-sequence format)
+                SEQ_DIRS=$(find "$problem_dir" -maxdepth 1 -type d -name "seq_*" 2>/dev/null | sort)
+                SEQ_COUNT=0
+                [ -n "$SEQ_DIRS" ] && SEQ_COUNT=$(echo "$SEQ_DIRS" | wc -l | tr -d ' ')
+
+                if [ "$SEQ_COUNT" -gt 0 ]; then
+                  # Multi-sequence: check each seq directory
+                  PROBLEM_COMPLETED=0
+                  PROBLEM_FAILED=0
+                  PROBLEM_PENDING=0
+
+                  for seq_dir in $SEQ_DIRS; do
+                    [ ! -d "$seq_dir" ] && continue
+                    SEQ_NUM=$(basename "$seq_dir" | sed 's/seq_//')
+
+                    # Check for model.cif in seq directory
+                    if find "$seq_dir" -maxdepth 2 -name "*_model.cif" -type f 2>/dev/null | head -1 | grep -q .; then
+                      PROBLEM_COMPLETED=$((PROBLEM_COMPLETED + 1))
+                    else
+                      # Check SLURM job status
+                      JOB_NAME="${SUBMISSION_ID}_${PROBLEM_ID}_seq${SEQ_NUM}"
+                      JOB_STATUS=$(sacct --name="$JOB_NAME" --format=State --noheader 2>/dev/null | head -1 | tr -d ' ')
+
+                      if [ "$JOB_STATUS" = "FAILED" ] || [ "$JOB_STATUS" = "CANCELLED" ] || [ "$JOB_STATUS" = "TIMEOUT" ]; then
+                        PROBLEM_FAILED=$((PROBLEM_FAILED + 1))
+                      else
+                        PROBLEM_PENDING=$((PROBLEM_PENDING + 1))
+                      fi
+                    fi
+                  done
+
+                  # Problem is done when all sequences finished (completed or failed, none pending)
+                  if [ "$PROBLEM_PENDING" -eq 0 ]; then
+                    if [ "$PROBLEM_COMPLETED" -gt 0 ]; then
+                      COMPLETED_COUNT=$((COMPLETED_COUNT + 1))
+                      COMPLETED_LIST="${COMPLETED_LIST}${PROBLEM_ID}(${PROBLEM_COMPLETED}/${SEQ_COUNT}), "
+                      if ! echo ",$NOTIFIED_PROBLEMS," | grep -q ",${PROBLEM_ID},"; then
+                        NEW_COMPLETED_LIST="${NEW_COMPLETED_LIST}${PROBLEM_ID}, "
+                      fi
+                    fi
+                    if [ "$PROBLEM_FAILED" -gt 0 ]; then
+                      FAILED_COUNT=$((FAILED_COUNT + 1))
+                      FAILED_LIST="${FAILED_LIST}${PROBLEM_ID}(${PROBLEM_FAILED}/${SEQ_COUNT} failed), "
+                    fi
+                  else
+                    PENDING_LIST="${PENDING_LIST}${PROBLEM_ID}(${PROBLEM_PENDING} pending), "
+                  fi
+                else
+                  # Legacy: check problem_dir directly
+                  if find "$problem_dir" -maxdepth 2 -name "*_model.cif" -type f 2>/dev/null | head -1 | grep -q .; then
+                    COMPLETED_COUNT=$((COMPLETED_COUNT + 1))
+                    COMPLETED_LIST="${COMPLETED_LIST}${PROBLEM_ID}, "
+                    if ! echo ",$NOTIFIED_PROBLEMS," | grep -q ",${PROBLEM_ID},"; then
+                      NEW_COMPLETED_LIST="${NEW_COMPLETED_LIST}${PROBLEM_ID}, "
+                    fi
+                  else
+                    JOB_NAME="${SUBMISSION_ID}_${PROBLEM_ID}"
+                    JOB_STATUS=$(sacct --name="$JOB_NAME" --format=State --noheader 2>/dev/null | head -1 | tr -d ' ')
+
+                    if [ "$JOB_STATUS" = "FAILED" ] || [ "$JOB_STATUS" = "CANCELLED" ] || [ "$JOB_STATUS" = "TIMEOUT" ]; then
+                      FAILED_COUNT=$((FAILED_COUNT + 1))
+                      FAILED_LIST="${FAILED_LIST}${PROBLEM_ID} (${JOB_STATUS}), "
+                    else
+                      PENDING_LIST="${PENDING_LIST}${PROBLEM_ID}, "
+                    fi
+                  fi
+                fi
+              done
+
+              # Remove trailing commas
+              COMPLETED_LIST=$(echo "$COMPLETED_LIST" | sed 's/, $//')
+              FAILED_LIST=$(echo "$FAILED_LIST" | sed 's/, $//')
+              PENDING_LIST=$(echo "$PENDING_LIST" | sed 's/, $//')
+              NEW_COMPLETED_LIST=$(echo "$NEW_COMPLETED_LIST" | sed 's/, $//')
+
+              echo "  Completed: $COMPLETED_COUNT/$TOTAL_PROBLEMS ($COMPLETED_LIST)"
+              echo "  Newly completed: $NEW_COMPLETED_LIST"
+              echo "  Failed: $FAILED_COUNT ($FAILED_LIST)"
+              echo "  Pending: ($PENDING_LIST)"
+
+              # Check if we should process this submission
+              # INCREMENTAL_NOTIFICATIONS=false: only when all done or failures with no pending
+              # INCREMENTAL_NOTIFICATIONS=true: on each new completion
+              SHOULD_PROCESS=false
+              if [ "$INCREMENTAL_NOTIFICATIONS" = "true" ]; then
+                # Incremental mode: process if any new completions
+                if [ -n "$NEW_COMPLETED_LIST" ] || [ "$FAILED_COUNT" -gt 0 ]; then
+                  SHOULD_PROCESS=true
+                fi
+              else
+                # Non-incremental mode: only process when all done or all finished (with failures)
+                if [ "$COMPLETED_COUNT" -ge "$TOTAL_PROBLEMS" ]; then
+                  SHOULD_PROCESS=true
+                elif [ "$FAILED_COUNT" -gt 0 ] && [ -z "$PENDING_LIST" ]; then
+                  SHOULD_PROCESS=true
+                fi
+              fi
+
+              if [ "$SHOULD_PROCESS" = "false" ]; then
+                echo "  Waiting for more completions (incremental=$INCREMENTAL_NOTIFICATIONS)..."
+                continue
+              fi
+
+              # Package results
+              if [ "$COMPLETED_COUNT" -gt 0 ]; then
+                echo "Packaging results..."
+                python3 scripts/package_results.py \
+                  --submission-dir "$dir" \
+                  --output-dir "${PUBLIC_RESULTS}" \
+                  --status-file "$STATUS_FILE" \
+                  --incremental || true
+
+                TOKEN=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('result_token', ''))" 2>/dev/null)
+
+                if [ -n "$TOKEN" ]; then
+                  echo "Results packaged with token: $TOKEN"
+                  mkdir -p docs/results/${TOKEN}
+                  cp -r ${PUBLIC_RESULTS}/${TOKEN}/* docs/results/${TOKEN}/
+                  RESULTS_UPDATED=true
+
+                  # Mark as completed if all problems done (do this AFTER copy succeeds)
+                  if [ "$COMPLETED_COUNT" -ge "$TOTAL_PROBLEMS" ]; then
+                    python3 -c "import json; f=open('$STATUS_FILE'); d=json.load(f); f.close(); d['status']='completed'; f=open('$STATUS_FILE','w'); json.dump(d,f,indent=2); f.close()"
+                    echo "Marked submission as completed"
+
+                    # Send admin notification with token for easy access
+                    for ADMIN in $(echo "${ADMIN_EMAILS}" | tr ',' ' '); do
+                      printf "To: %s\nFrom: noreply@seoklab.org\nSubject: [ADMIN] Results Ready - %s\n\nResults are ready!\n\nSubmission ID: %s\nParticipant: %s (%s)\nCompleted: %s problems (%s)\n\nToken: %s\n\nView results:\n%s/viewer.html?token=%s\n\nDirect files:\n%s/results/%s/\n\nSubmission directory:\n%s\n" "$ADMIN" "$SUBMISSION_ID" "$SUBMISSION_ID" "$PARTICIPANT_ID" "$EMAIL" "$COMPLETED_COUNT" "$COMPLETED_LIST" "$TOKEN" "${SITE_URL}" "$TOKEN" "${SITE_URL}" "$TOKEN" "$dir" | sendmail -t || true
+                    done
+                    echo "Admin notifications sent"
+                  fi
+                fi
+              fi
+
+              # Send email based on mode
+              if [ -n "$EMAIL" ] && [ -n "$TOKEN" ]; then
+                if [ "$COMPLETED_COUNT" -ge "$TOTAL_PROBLEMS" ]; then
+                  # All done - send final email
+                  echo "Sending FINAL results email to: $EMAIL"
+                  printf "To: %s\nFrom: noreply@seoklab.org\nSubject: All Results Ready - KIDDS 2026\n\nHello %s,\n\nGreat news! All %s of your AlphaFold3 structure predictions are complete.\n\nCompleted: %s\n\nView your results:\n%s/viewer.html?token=%s\n\nDownload all files:\n%s/results/%s/\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$PARTICIPANT_ID" "$COMPLETED_COUNT" "$COMPLETED_LIST" "${SITE_URL}" "$TOKEN" "${SITE_URL}" "$TOKEN" | sendmail -t || true
+                  echo "Processed submission: $SUBMISSION_ID"
+                elif [ "$INCREMENTAL_NOTIFICATIONS" = "true" ] && [ -n "$NEW_COMPLETED_LIST" ]; then
+                  # Incremental mode: send progress email
+                  echo "Sending PROGRESS email to: $EMAIL ($COMPLETED_COUNT/$TOTAL_PROBLEMS)"
+                  printf "To: %s\nFrom: noreply@seoklab.org\nSubject: Progress Update (%s/%s) - KIDDS 2026\n\nHello %s,\n\nYour AlphaFold3 predictions are in progress.\n\nCompleted: %s/%s (%s)\nJust finished: %s\nStill running: %s\n\nView your results (updates as more complete):\n%s/viewer.html?token=%s\n\nYou will receive another email when more results are ready.\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$COMPLETED_COUNT" "$TOTAL_PROBLEMS" "$PARTICIPANT_ID" "$COMPLETED_COUNT" "$TOTAL_PROBLEMS" "$COMPLETED_LIST" "$NEW_COMPLETED_LIST" "$PENDING_LIST" "${SITE_URL}" "$TOKEN" | sendmail -t
+
+                  # Send admin notification for progress
+                  for ADMIN in $(echo "${ADMIN_EMAILS}" | tr ',' ' '); do
+                    printf "To: %s\nFrom: noreply@seoklab.org\nSubject: [ADMIN] Progress Update - %s (%s/%s)\n\nProgress update!\n\nSubmission ID: %s\nParticipant: %s (%s)\n\nCompleted: %s/%s (%s)\nJust finished: %s\nStill running: %s\n\nToken: %s\n\nView results:\n%s/viewer.html?token=%s\n\nSubmission directory:\n%s\n" "$ADMIN" "$SUBMISSION_ID" "$COMPLETED_COUNT" "$TOTAL_PROBLEMS" "$SUBMISSION_ID" "$PARTICIPANT_ID" "$EMAIL" "$COMPLETED_COUNT" "$TOTAL_PROBLEMS" "$COMPLETED_LIST" "$NEW_COMPLETED_LIST" "$PENDING_LIST" "$TOKEN" "${SITE_URL}" "$TOKEN" "$dir" | sendmail -t || true
+                  done
+
+                  echo "Processed submission: $SUBMISSION_ID"
+                fi
+              fi
+
+              # Handle failures (only when no more pending jobs)
+              if [ "$FAILED_COUNT" -gt 0 ] && [ -z "$PENDING_LIST" ]; then
+                echo "Some problems failed, sending notification..."
+                python3 -c "import json; f=open('$STATUS_FILE'); d=json.load(f); f.close(); d['status']='notified_partial'; d['failed']='$FAILED_LIST'; f=open('$STATUS_FILE','w'); json.dump(d,f,indent=2); f.close()"
+
+                if [ -n "$EMAIL" ]; then
+                  if [ -n "$TOKEN" ]; then
+                    printf "To: %s\nFrom: noreply@seoklab.org\nSubject: Results Ready (with errors) - KIDDS 2026\n\nHello %s,\n\nYour AlphaFold3 predictions have finished, but some encountered errors.\n\nCompleted (%s): %s\nFailed (%s): %s\n\nView your completed results:\n%s/viewer.html?token=%s\n\nThe workshop organizers have been notified. You may resubmit failed problems if needed.\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$PARTICIPANT_ID" "$COMPLETED_COUNT" "$COMPLETED_LIST" "$FAILED_COUNT" "$FAILED_LIST" "${SITE_URL}" "$TOKEN" | sendmail -t
+                  else
+                    printf "To: %s\nFrom: noreply@seoklab.org\nSubject: Submission Failed - KIDDS 2026\n\nHello %s,\n\nUnfortunately, your AlphaFold3 predictions encountered errors.\n\nFailed (%s): %s\n\nThe workshop organizers have been notified. You may resubmit if needed.\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$PARTICIPANT_ID" "$FAILED_COUNT" "$FAILED_LIST" | sendmail -t
+                  fi
+                fi
+
+                # Send admin notification
+                for ADMIN in $(echo "${ADMIN_EMAILS}" | tr ',' ' '); do
+                  printf "To: %s\nFrom: noreply@seoklab.org\nSubject: [ADMIN] Submission Failure - %s\n\nSubmission ID: %s\nParticipant: %s (%s)\n\nCompleted (%s): %s\nFailed (%s): %s\n\nLogs: %s/\n" "$ADMIN" "$SUBMISSION_ID" "$SUBMISSION_ID" "$PARTICIPANT_ID" "$EMAIL" "$COMPLETED_COUNT" "$COMPLETED_LIST" "$FAILED_COUNT" "$FAILED_LIST" "$dir" | sendmail -t || true
+                done
+              fi
+
+            else
+              # Single-problem submission (backward compatibility)
+              MODEL_FILE=$(find "$dir" -maxdepth 2 -name "*_model.cif" -type f 2>/dev/null | head -1)
+              if [ -n "$MODEL_FILE" ]; then
+                echo "Found completed output: $MODEL_FILE"
+                python3 scripts/package_results.py \
+                  --submission-dir "$dir" \
+                  --output-dir "${PUBLIC_RESULTS}" \
+                  --status-file "$STATUS_FILE"
+
+                TOKEN=$(python3 -c "import json; print(json.load(open('$STATUS_FILE')).get('result_token', ''))" 2>/dev/null)
+
+                if [ -n "$TOKEN" ]; then
+                  echo "Results packaged with token: $TOKEN"
+                  mkdir -p docs/results/${TOKEN}
+                  cp -r ${PUBLIC_RESULTS}/${TOKEN}/* docs/results/${TOKEN}/
+                  RESULTS_UPDATED=true
+
+                  SEQ_NAME=$(python3 -c "import json; print(json.load(open('$SUBMISSION_FILE')).get('sequence_name', 'your sequence'))" 2>/dev/null)
+
+                  if [ -n "$EMAIL" ]; then
+                    printf "To: %s\nFrom: noreply@seoklab.org\nSubject: Your Protein Structure Results are Ready\n\nHello,\n\nYour AlphaFold3 structure prediction for \"%s\" is now complete!\n\nView your results:\n%s/viewer.html?token=%s\n\nDownload files:\n%s/results/%s/\n\nBest regards,\nKIDDS workshop organizers\n" "$EMAIL" "$SEQ_NAME" "${SITE_URL}" "$TOKEN" "${SITE_URL}" "$TOKEN" | sendmail -t
+                  fi
+
+                  # Send admin notification
+                  for ADMIN in $(echo "${ADMIN_EMAILS}" | tr ',' ' '); do
+                    printf "To: %s\nFrom: noreply@seoklab.org\nSubject: [ADMIN] Results Ready - %s\n\nResults are ready!\n\nSubmission ID: %s\nParticipant: %s (%s)\nSequence: %s\n\nToken: %s\n\nView results:\n%s/viewer.html?token=%s\n\nDirect files:\n%s/results/%s/\n\nSubmission directory:\n%s\n" "$ADMIN" "$SUBMISSION_ID" "$SUBMISSION_ID" "$PARTICIPANT_ID" "$EMAIL" "$SEQ_NAME" "$TOKEN" "${SITE_URL}" "$TOKEN" "${SITE_URL}" "$TOKEN" "$dir" | sendmail -t || true
+                  done
+
+                  echo "Processed submission: $SUBMISSION_ID"
+                fi
+              fi
+            fi
+          done
+
+          echo "results_updated=$RESULTS_UPDATED" >> $GITHUB_OUTPUT
+
+      - name: Update leaderboard
+        if: steps.check.outputs.results_updated == 'true'
+        run: |
+          echo "Updating leaderboard data..."
+
+          # Define reference files for each problem (updated for new problems)
+          TARGETS_DIR="${GITHUB_WORKSPACE}/docs/targets"
+          RESULTS_DIR="${GITHUB_WORKSPACE}/docs/results"
+
+          declare -A PROBLEM_REFS=(
+            ["problem_1"]="3H-scaffold.pdb:monomer"
+            ["problem_2"]="4B1H-scaffold.pdb:monomer"
+            ["problem_3"]="top7-scaffold.pdb:monomer"
+            ["problem_4"]="PepBinder1-scaffold.pdb:binder"
+            ["problem_5"]="PepBinder2-scaffold.pdb:binder"
+          )
+
+          # Run evaluation for each result directory
+          for token_dir in ${RESULTS_DIR}/*/; do
+            [ ! -d "$token_dir" ] && continue
+            TOKEN=$(basename "$token_dir")
+            [ "$TOKEN" = ".gitkeep" ] && continue
+
+            # Get participant ID
+            SUBMISSION_FILE="${token_dir}/submission.json"
+            [ ! -f "$SUBMISSION_FILE" ] && continue
+
+            PARTICIPANT_ID=$(python3 -c "import json; print(json.load(open('$SUBMISSION_FILE')).get('participant_id', 'unknown'))" 2>/dev/null || echo "unknown")
+
+            # Check each problem
+            for problem_id in problem_1 problem_2 problem_3 problem_4 problem_5; do
+              REF_INFO="${PROBLEM_REFS[$problem_id]}"
+              REF_FILE="${REF_INFO%:*}"
+              PROBLEM_TYPE="${REF_INFO#*:}"
+
+              # Find all model files for this problem (supports multi-sequence: _seq1, _seq2, etc.)
+              MODEL_FILES=$(find "$token_dir" -name "*${problem_id}*_model.cif" 2>/dev/null | sort)
+              [ -z "$MODEL_FILES" ] && continue
+
+              for MODEL_FILE in $MODEL_FILES; do
+                # Extract sequence number if present (e.g., problem_1_seq2_model.cif -> seq2)
+                MODEL_NAME=$(basename "$MODEL_FILE")
+                SEQ_SUFFIX=""
+                SEQ_ID=""
+                if echo "$MODEL_NAME" | grep -q "_seq[0-9]"; then
+                  SEQ_SUFFIX=$(echo "$MODEL_NAME" | grep -oP '_seq\d+' | head -1)
+                  SEQ_ID=$(echo "$SEQ_SUFFIX" | sed 's/^_//')  # Remove leading underscore
+                fi
+
+                # Build evaluation file name
+                EVAL_FILE="${token_dir}/${PARTICIPANT_ID}_${problem_id}${SEQ_SUFFIX}_evaluation.json"
+
+                # Check if already evaluated
+                [ -f "$EVAL_FILE" ] && continue
+
+                echo "Evaluating $TOKEN / $problem_id$SEQ_SUFFIX..."
+
+                # Build seq-id argument if present
+                SEQ_ARG=""
+                [ -n "$SEQ_ID" ] && SEQ_ARG="--seq-id $SEQ_ID"
+
+                # Run evaluation using TMalign + Python lDDT
+                python3 scripts/evaluate_structure.py \
+                  --model "$MODEL_FILE" \
+                  --reference "${TARGETS_DIR}/${REF_FILE}" \
+                  --problem-id "$problem_id" \
+                  --problem-type "$PROBLEM_TYPE" \
+                  --participant-id "$PARTICIPANT_ID" \
+                  --token="$TOKEN" \
+                  --result-dir "$token_dir" \
+                  --output "$EVAL_FILE" \
+                  $SEQ_ARG || echo "Warning: Evaluation failed for $TOKEN/$problem_id$SEQ_SUFFIX"
+              done
+            done
+          done
+
+          # Update leaderboard
+          echo "Regenerating leaderboard..."
+          python3 scripts/update_leaderboard.py \
+            --results-dir "${RESULTS_DIR}" \
+            --config "${GITHUB_WORKSPACE}/docs/targets/config.json" \
+            --output "${GITHUB_WORKSPACE}/docs/leaderboard_data.json"
+
+          # Update admin index
+          echo "Regenerating admin index..."
+          python3 scripts/generate_admin_index.py
+
+          echo "Leaderboard update complete"
+
+      - name: Commit and push results
+        if: steps.check.outputs.results_updated == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/results/ docs/leaderboard_data.json
+          git diff --staged --quiet || git commit -m "Add completed results [skip ci]"
+          # Pull any remote changes and retry push up to 3 times
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push && break
+            echo "Push attempt $i failed, retrying..."
+            sleep 2
+          done

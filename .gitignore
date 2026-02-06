@@ -1,0 +1,26 @@
+# Results and submissions directories (contains AF3 outputs)
+/results/
+/submissions/
+/public_results/
+# But allow docs/results for Netlify serving
+!docs/results/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv/
+venv/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+# Vim undo files
+*.un~
+.*.un~

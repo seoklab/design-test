@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Downloads - KIDDS 2026 Protein Competition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        .header {
+            background: #16213e;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #0f3460;
+        }
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 1.8rem;
+            color: #e94560;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        .nav-links {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .nav-links a {
+            color: #65cbf3;
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .nav-links a:hover {
+            background: rgba(101, 203, 243, 0.1);
+        }
+        .header-links {
+            display: flex;
+            gap: 1rem;
+        }
+        .header-links a {
+            color: #65cbf3;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .header-links a:hover {
+            text-decoration: underline;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .page-title {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .page-title h2 {
+            color: #65cbf3;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        .page-title p {
+            color: #aaa;
+            font-size: 1.1rem;
+        }
+        .section {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .section h3 {
+            color: #65cbf3;
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #0f3460;
+            padding-bottom: 0.5rem;
+        }
+        .section-description {
+            color: #aaa;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+        .file-card {
+            background: #0f0f23;
+            border: 2px solid #2a3f5f;
+            border-radius: 8px;
+            padding: 1.25rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .file-card:hover {
+            border-color: #65cbf3;
+            transform: translateY(-2px);
+        }
+        .file-icon {
+            font-size: 2rem;
+            margin-bottom: 0.75rem;
+        }
+        .file-name {
+            color: #eee;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            word-break: break-word;
+        }
+        .file-description {
+            color: #888;
+            font-size: 0.85rem;
+            margin-bottom: 0.75rem;
+            line-height: 1.4;
+        }
+        .file-size {
+            color: #666;
+            font-size: 0.8rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        .download-btn {
+            display: inline-block;
+            background: #65cbf3;
+            color: #0f0f23;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 0.75rem;
+            transition: background 0.2s;
+            text-align: center;
+        }
+        .download-btn:hover {
+            background: #4db8e8;
+        }
+        .info-box {
+            background: rgba(101, 203, 243, 0.1);
+            border-left: 4px solid #65cbf3;
+            padding: 1rem 1.25rem;
+            border-radius: 6px;
+            margin-bottom: 2rem;
+        }
+        .info-box p {
+            color: #ccc;
+            line-height: 1.6;
+        }
+        .info-box strong {
+            color: #65cbf3;
+        }
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+            .file-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <nav class="nav-links">
+                    <a href="./">← Home</a>
+                </nav>
+                <h1>📥 Downloads</h1>
+            </div>
+            <div class="header-links">
+                <a href="index.html">Submit</a>
+                <a href="leaderboard.html">Leaderboard</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="page-title">
+            <h2>Download Resources</h2>
+            <p>Competition files, templates, and documentation</p>
+        </div>
+
+        <!-- Templates Section -->
+        <div class="section">
+            <h3>🧬 Templates & Examples</h3>
+            <p class="section-description">SCOP unique protein structure dataset for training and reference</p>
+            <div class="file-grid">
+                <div class="file-card">
+                    <div class="file-icon">📦</div>
+                    <div class="file-name">SCOPunique.tgz</div>
+                    <div class="file-description">SCOP unique protein structures dataset</div>
+                    <div class="file-size">TBD</div>
+                    <a href="downloads/SCOPunique.tgz" class="download-btn" download>Download</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

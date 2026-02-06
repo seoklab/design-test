@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1st KIDDS Human ProteinMPNN Competition - Archive</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+            background-attachment: fixed;
+            color: #e8e8e8;
+            min-height: 100vh;
+        }
+        .header {
+            background: rgba(22, 33, 62, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid rgba(126, 184, 218, 0.2);
+        }
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        .nav-links {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .nav-links a {
+            color: #7eb8da;
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .nav-links a:hover {
+            background: rgba(126, 184, 218, 0.15);
+            color: #a8d4f0;
+        }
+        .header-links {
+            display: flex;
+            gap: 1.25rem;
+        }
+        .header-links a {
+            color: #7eb8da;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .header-links a:hover {
+            color: #a8d4f0;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Winner Banner */
+        .winner-banner {
+            background: linear-gradient(135deg, rgba(26, 74, 122, 0.8) 0%, rgba(15, 52, 96, 0.8) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            border-radius: 16px;
+            padding: 2.5rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+        .winner-trophy {
+            font-size: 3rem;
+            margin-bottom: 0.75rem;
+        }
+        .winner-title {
+            color: #7eb8da;
+            font-size: 1rem;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+        }
+        .winner-subtitle {
+            color: #9ab;
+            font-size: 1rem;
+            margin-bottom: 1.25rem;
+        }
+        .winner-team {
+            color: #fff;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        .winner-label {
+            color: #7eb8da;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+        .winner-photos {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .winner-photo {
+            flex: 1;
+            max-width: 450px;
+            min-width: 280px;
+        }
+        .winner-photo img {
+            width: 100%;
+            border-radius: 8px;
+            border: 2px solid #ffd700;
+        }
+        .winner-photo-caption {
+            color: #aaa;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Podium styles */
+        .podium {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .podium-place {
+            text-align: center;
+            padding: 1.25rem;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+        .podium-place:hover {
+            transform: translateY(-4px);
+        }
+        .podium-place.first {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 215, 0, 0.05) 100%);
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            order: 2;
+        }
+        .podium-place.second {
+            background: linear-gradient(135deg, rgba(192, 192, 192, 0.1) 0%, rgba(192, 192, 192, 0.03) 100%);
+            border: 1px solid rgba(192, 192, 192, 0.3);
+        }
+        .podium-place.second:first-child { order: 1; }
+        .podium-place.second:last-child { order: 3; }
+        .medal {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .place-label {
+            font-size: 0.75rem;
+            color: #789;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-bottom: 0.25rem;
+        }
+        .place-team {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .podium-place.first .place-team {
+            color: #ffd700;
+            font-size: 1.4rem;
+        }
+
+        .last-updated {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #0f3460;
+            padding-bottom: 1rem;
+        }
+        .tab {
+            padding: 0.75rem 1.25rem;
+            background: #0f0f23;
+            border: 2px solid #2a3f5f;
+            border-radius: 8px;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .tab:hover {
+            border-color: #7eb8da;
+            color: #fff;
+        }
+        .tab.active {
+            background: #7eb8da;
+            border-color: #7eb8da;
+            color: #16213e;
+        }
+        .tab.overall {
+            background: #0f3460;
+            border-color: #0f3460;
+        }
+        .tab.overall.active {
+            background: #7eb8da;
+            border-color: #7eb8da;
+            color: #16213e;
+        }
+        .problem-type-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+        .problem-type-badge.monomer {
+            background: #2a3f5f;
+            color: #7eb8da;
+        }
+        .problem-type-badge.binder {
+            background: #4a2c5a;
+            color: #d4a5ff;
+        }
+        .panel {
+            display: none;
+        }
+        .panel.active {
+            display: block;
+        }
+        .panel-header {
+            margin-bottom: 1rem;
+        }
+        .panel-header h2 {
+            color: #7eb8da;
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+        }
+        .panel-header p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        /* Table styles */
+        .table-container {
+            overflow-x: auto;
+        }
+        .ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #16213e;
+            border-radius: 8px;
+            overflow: hidden;
+            min-width: 800px;
+        }
+        .ranking-table th,
+        .ranking-table td {
+            padding: 0.75rem 0.6rem;
+            text-align: left;
+            border-bottom: 1px solid #0f3460;
+            white-space: nowrap;
+        }
+        .ranking-table th {
+            background: #0f3460;
+            color: #7eb8da;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        .ranking-table th:hover {
+            background: #1a4a7a;
+        }
+        .ranking-table th.sortable::after {
+            content: ' \2195';
+            opacity: 0.5;
+            font-size: 0.7rem;
+        }
+        .ranking-table th.sort-asc::after {
+            content: ' \2191';
+            opacity: 1;
+        }
+        .ranking-table th.sort-desc::after {
+            content: ' \2193';
+            opacity: 1;
+        }
+        .ranking-table tr:last-child td {
+            border-bottom: none;
+        }
+        .ranking-table tr:hover {
+            background: #1f2f4f;
+        }
+        .rank-cell {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        .rank-1 { color: #ffd700; }
+        .rank-2 { color: #c0c0c0; }
+        .rank-3 { color: #cd7f32; }
+        .rank-medal {
+            font-size: 1.2rem;
+            margin-right: 0.25rem;
+        }
+        .score-cell {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+        }
+        .score-cell.primary {
+            color: #7eb8da;
+            font-weight: 600;
+        }
+        .score-cell.secondary {
+            color: #aaa;
+        }
+        .score-cell.highlight {
+            color: #2ecc71;
+        }
+        .participant-id {
+            font-weight: 500;
+        }
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: #888;
+        }
+        .metric-label {
+            font-size: 0.7rem;
+            color: #666;
+            display: block;
+            margin-top: 0.1rem;
+        }
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #888;
+        }
+        .error {
+            text-align: center;
+            padding: 2rem;
+            color: #e94560;
+            background: rgba(233, 69, 96, 0.1);
+            border-radius: 8px;
+        }
+
+        /* Section headers in table */
+        .section-header {
+            background: #0a1628 !important;
+            color: #888 !important;
+            font-size: 0.7rem !important;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: default !important;
+        }
+        .section-header:hover {
+            background: #0a1628 !important;
+        }
+        .section-header::after {
+            display: none !important;
+        }
+
+        /* View link styles */
+        .view-link {
+            color: #7eb8da;
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .view-link:hover {
+            background: rgba(126, 184, 218, 0.2);
+            text-decoration: none;
+        }
+        .ranking-table th.view-col {
+            cursor: default;
+        }
+        .ranking-table th.view-col:hover {
+            background: #0f3460;
+        }
+        .ranking-table th.view-col::after {
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            .header-content {
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+            }
+            .ranking-table {
+                font-size: 0.8rem;
+            }
+            .ranking-table th,
+            .ranking-table td {
+                padding: 0.5rem 0.4rem;
+            }
+            .tabs {
+                justify-content: center;
+            }
+            .winner-banner {
+                padding: 1.5rem 1rem;
+            }
+            .winner-trophy {
+                font-size: 2rem;
+            }
+            .winner-title {
+                font-size: 1.2rem;
+            }
+            .winner-team {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <nav class="nav-links">
+                    <a href="./">&larr; Home</a>
+                </nav>
+                <h1>1st Competition</h1>
+            </div>
+            <div class="header-links">
+                <a href="kidds-2026-submit.html">Submit</a>
+                <a href="downloads.html">Downloads</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Winner Banner -->
+        <div class="winner-banner">
+            <div class="winner-trophy">🏆</div>
+            <div class="winner-title">1st KIDDS Human ProteinMPNN Competition</div>
+            <div class="winner-subtitle">February 2026</div>
+            <div class="podium">
+                <div class="podium-place second">
+                    <div class="medal">🥈</div>
+                    <div class="place-label">2nd Place (Tied)</div>
+                    <div class="place-team">Team 1</div>
+                </div>
+                <div class="podium-place first">
+                    <div class="medal">🥇</div>
+                    <div class="place-label">1st Place</div>
+                    <div class="place-team">Team 3</div>
+                </div>
+                <div class="podium-place second">
+                    <div class="medal">🥈</div>
+                    <div class="place-label">2nd Place (Tied)</div>
+                    <div class="place-team">Team 5</div>
+                </div>
+            </div>
+            <div class="winner-photos">
+                <div class="winner-photo">
+                    <img src="1st-winners-team3.jpeg" alt="Team 3 - Competition Winners">
+                    <div class="winner-photo-caption">The winning team</div>
+                </div>
+                <div class="winner-photo">
+                    <img src="winners-organizers.jpg" alt="Top teams and Organizers">
+                    <div class="winner-photo-caption">Top teams and Organizers</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Competition Schedule -->
+        <div style="background: #16213e; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
+            <h2 style="color: #7eb8da; margin-bottom: 1rem; font-size: 1.2rem;">Competition Schedule</h2>
+            <div style="display: grid; gap: 1rem;">
+                <div style="background: #0f0f23; border-radius: 8px; padding: 1rem; border-left: 3px solid #7eb8da;">
+                    <h3 style="color: #7eb8da; font-size: 1rem; margin-bottom: 0.5rem;">Day 1 - Tuesday, February 3</h3>
+                    <p style="color: #aaa; font-size: 0.9rem;">Problems 1-3 (Scaffold Design) | Round 1: 15:30-18:00, Round 2: 19:30-21:00</p>
+                </div>
+                <div style="background: #0f0f23; border-radius: 8px; padding: 1rem; border-left: 3px solid #d4a5ff;">
+                    <h3 style="color: #d4a5ff; font-size: 1rem; margin-bottom: 0.5rem;">Day 2 - Wednesday, February 4</h3>
+                    <p style="color: #aaa; font-size: 0.9rem;">Problems 4-5 (Binder Design) | Round 1: 09:30-12:00, Awards: 13:00-14:30</p>
+                </div>
+            </div>
+        </div>
+
+        <p class="last-updated" id="last-updated">Loading...</p>
+
+        <div class="tabs" id="tabs">
+            <button class="tab overall active" data-tab="overall">Overall Rankings</button>
+        </div>
+
+        <div id="panels">
+            <div class="panel active" id="panel-overall">
+                <div class="panel-header">
+                    <h2>Overall Rankings</h2>
+                    <p>Aggregate rankings across all problems. Score based on average placement.</p>
+                </div>
+                <div class="loading">Loading leaderboard data...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const LEADERBOARD_URL = './leaderboard_data.json';
+
+        let leaderboardData = null;
+        let currentSorts = {}; // Track current sort state per table
+
+        async function loadLeaderboard() {
+            try {
+                const response = await fetch(LEADERBOARD_URL);
+                if (!response.ok) {
+                    throw new Error('Failed to load leaderboard data');
+                }
+                leaderboardData = await response.json();
+                renderLeaderboard();
+            } catch (error) {
+                console.error('Error loading leaderboard:', error);
+                document.getElementById('panel-overall').innerHTML =
+                    '<div class="error">Failed to load leaderboard data. Rankings will appear once submissions are evaluated.</div>';
+            }
+        }
+
+        function renderLeaderboard() {
+            if (!leaderboardData) return;
+
+            // Update last updated
+            const lastUpdated = new Date(leaderboardData.last_updated);
+            document.getElementById('last-updated').textContent =
+                `Competition ended: ${lastUpdated.toLocaleString()}`;
+
+            // Render tabs
+            const tabsContainer = document.getElementById('tabs');
+            const panelsContainer = document.getElementById('panels');
+
+            // Create problem tabs (show all problems for archive)
+            const problems = leaderboardData.problems || {};
+            const sortedProblems = Object.keys(problems).sort();
+
+            sortedProblems.forEach(problemId => {
+                const problem = problems[problemId];
+                const tab = document.createElement('button');
+                tab.className = 'tab';
+                tab.dataset.tab = problemId;
+
+                const typeBadge = `<span class="problem-type-badge ${problem.type}">${problem.type === 'monomer' ? 'Scaffold' : 'Binder'}</span>`;
+                tab.innerHTML = problem.name.replace(/\s*\([^)]*\)/, '') + typeBadge;
+
+                tab.addEventListener('click', () => selectTab(problemId));
+                tabsContainer.appendChild(tab);
+
+                // Create panel
+                const panel = document.createElement('div');
+                panel.className = 'panel';
+                panel.id = `panel-${problemId}`;
+                panel.innerHTML = renderProblemPanel(problemId, problem);
+                panelsContainer.appendChild(panel);
+            });
+
+            // Render overall panel
+            document.getElementById('panel-overall').innerHTML = renderOverallPanel();
+
+            // Add click handler for overall tab
+            document.querySelector('.tab.overall').addEventListener('click', () => selectTab('overall'));
+
+            // Initialize sorting
+            initializeSorting();
+        }
+
+        function selectTab(tabId) {
+            // Update tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === tabId);
+            });
+
+            // Update panels
+            document.querySelectorAll('.panel').forEach(panel => {
+                panel.classList.toggle('active', panel.id === `panel-${tabId}`);
+            });
+        }
+
+        function renderProblemPanel(problemId, problem) {
+            const rankings = problem.rankings || [];
+
+            if (rankings.length === 0) {
+                return `
+                    <div class="panel-header">
+                        <h2>${problem.name}</h2>
+                        <p>Primary metric: ${formatMetricName(problem.primary_metric)}</p>
+                    </div>
+                    <div class="no-data">No submissions for this problem.</div>
+                `;
+            }
+
+            const isBinder = problem.type === 'binder';
+
+            let tableHeaders, tableRows;
+
+            if (isBinder) {
+                // Show lDDT×Cov column for problem_4 only (problem_5 has unreliable coverage due to short peptide)
+                const showBinderCov = problemId === 'problem_4';
+                const binderColSpan = showBinderCov ? 4 : 3;
+
+                tableHeaders = `
+                    <tr>
+                        <th class="sortable" data-key="rank" data-type="number">Rank</th>
+                        <th class="sortable" data-key="participant_id" data-type="string">Participant</th>
+                        <th colspan="${binderColSpan}" class="section-header">Binder Only</th>
+                        <th colspan="3" class="section-header">Complex</th>
+                        <th colspan="3" class="section-header">AlphaFold3</th>
+                        <th class="view-col">View</th>
+                    </tr>
+                    <tr>
+                        <th></th>
+                        <th></th>
+                        <th class="sortable" data-key="binder_lddt" data-type="number">BB-lDDT</th>
+                        ${showBinderCov ? '<th class="sortable" data-key="binder_lddt_cov" data-type="number">lDDT×Cov</th>' : ''}
+                        <th class="sortable" data-key="binder_rmsd" data-type="number" data-order="asc">RMSD</th>
+                        <th class="sortable" data-key="binder_tm" data-type="number">TM-score</th>
+                        <th class="sortable" data-key="interface_lddt" data-type="number">iLDDT</th>
+                        <th class="sortable" data-key="complex_tm" data-type="number">TM-score</th>
+                        <th class="sortable" data-key="complex_rmsd" data-type="number" data-order="asc">RMSD</th>
+                        <th class="sortable" data-key="iptm" data-type="number">ipTM</th>
+                        <th class="sortable" data-key="ptm" data-type="number">pTM</th>
+                        <th class="sortable" data-key="plddt" data-type="number">pLDDT</th>
+                        <th></th>
+                    </tr>
+                `;
+
+                tableRows = rankings.map(entry => {
+                    const rankClass = entry.rank <= 3 ? `rank-${entry.rank}` : '';
+                    return `
+                        <tr>
+                            <td class="rank-cell ${rankClass}">${formatRank(entry.rank)}</td>
+                            <td class="participant-id">${escapeHtml(entry.participant_id)}</td>
+                            <td class="score-cell primary">${formatScore(entry.binder_lddt)}</td>
+                            ${showBinderCov ? `<td class="score-cell secondary">${formatScore(entry.binder_lddt_cov)}</td>` : ''}
+                            <td class="score-cell secondary">${formatScore(entry.binder_rmsd)}</td>
+                            <td class="score-cell secondary">${formatScore(entry.binder_tm)}</td>
+                            <td class="score-cell ${entry.interface_lddt ? 'highlight' : 'secondary'}">${formatScore(entry.interface_lddt)}</td>
+                            <td class="score-cell secondary">${formatScore(entry.complex_tm)}</td>
+                            <td class="score-cell secondary">${formatScore(entry.complex_rmsd)}</td>
+                            <td class="score-cell highlight">${formatScore(entry.iptm)}</td>
+                            <td class="score-cell secondary">${formatScore(entry.ptm)}</td>
+                            <td class="score-cell secondary">${formatScore(entry.plddt)}</td>
+                            <td><a href="viewer.html?token=${encodeURIComponent(entry.token)}" target="_blank" class="view-link">View</a></td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                // Monomer design
+                tableHeaders = `
+                    <tr>
+                        <th class="sortable" data-key="rank" data-type="number">Rank</th>
+                        <th class="sortable" data-key="participant_id" data-type="string">Participant</th>
+                        <th colspan="4" class="section-header">Structure Metrics</th>
+                        <th colspan="2" class="section-header">AlphaFold3</th>
+                        <th class="view-col">View</th>
+                    </tr>
+                    <tr>
+                        <th></th>
+                        <th></th>
+                        <th class="sortable" data-key="tm_score" data-type="number">TM-score</th>
+                        <th class="sortable" data-key="bb_lddt" data-type="number">BB-lDDT</th>
+                        <th class="sortable" data-key="bb_lddt_cov" data-type="number">lDDT×Cov</th>
+                        <th class="sortable" data-key="rmsd" data-type="number" data-order="asc">RMSD</th>
+                        <th class="sortable" data-key="ptm" data-type="number">pTM</th>
+                        <th class="sortable" data-key="plddt" data-type="number">pLDDT</th>
+                        <th></th>
+                    </tr>
+                `;
+
+                tableRows = rankings.map(entry => {
+                    const rankClass = entry.rank <= 3 ? `rank-${entry.rank}` : '';
+                    return `
+                        <tr>
+                            <td class="rank-cell ${rankClass}">${formatRank(entry.rank)}</td>
+                            <td class="participant-id">${escapeHtml(entry.participant_id)}</td>
+                            <td class="score-cell primary">${formatScore(entry.tm_score)}</td>
+                            <td class="score-cell secondary">${formatScore(entry.bb_lddt)}</td>
+                            <td class="score-cell secondary">${formatScore(entry.bb_lddt_cov)}</td>
+                            <td class="score-cell secondary">${formatScore(entry.rmsd)}</td>
+                            <td class="score-cell secondary">${formatScore(entry.ptm)}</td>
+                            <td class="score-cell secondary">${formatScore(entry.plddt)}</td>
+                            <td><a href="viewer.html?token=${encodeURIComponent(entry.token)}" target="_blank" class="view-link">View</a></td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            return `
+                <div class="panel-header">
+                    <h2>${problem.name}</h2>
+                    <p>${isBinder ? 'Binder Design' : 'Scaffold Design'} | ${rankings.length} submissions | Click column headers to sort</p>
+                </div>
+                <div class="table-container">
+                    <table class="ranking-table" data-table-id="${problemId}">
+                        <thead>${tableHeaders}</thead>
+                        <tbody>${tableRows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderOverallPanel() {
+            const rankings = leaderboardData.overall_rankings || [];
+
+            if (rankings.length === 0) {
+                return `
+                    <div class="panel-header">
+                        <h2>Overall Rankings</h2>
+                        <p>Aggregate rankings across all problems by team.</p>
+                    </div>
+                    <div class="no-data">No submissions. Rankings will appear once results are evaluated.</div>
+                `;
+            }
+
+            // Get sorted problem IDs (show all for archive)
+            const problems = leaderboardData.problems || {};
+            const problemIds = Object.keys(problems).sort();
+
+            // Build problem column headers
+            const problemHeaders = problemIds.map(pid => {
+                const pnum = pid.replace('problem_', '');
+                return `<th class="sortable" data-key="problem_${pnum}" data-type="number">P${pnum}</th>`;
+            }).join('');
+
+            const tableRows = rankings.map(entry => {
+                const rankClass = entry.rank <= 3 ? `rank-${entry.rank}` : '';
+
+                // Format z-score
+                const zScore = entry.overall_z_score !== undefined ?
+                    (entry.overall_z_score >= 0 ? '+' : '') + entry.overall_z_score.toFixed(2) : '-';
+
+                // Build problem score cells
+                const problemCells = problemIds.map(pid => {
+                    const score = entry.problem_scores ? entry.problem_scores[pid] : null;
+                    if (score !== null && score !== undefined) {
+                        return `<td class="score-cell">${score.toFixed(3)}</td>`;
+                    }
+                    return `<td class="score-cell secondary">-</td>`;
+                }).join('');
+
+                // Get first available token for view link
+                const firstToken = entry.problem_tokens ? Object.values(entry.problem_tokens)[0] : null;
+                const viewLink = firstToken
+                    ? `<a href="viewer.html?token=${encodeURIComponent(firstToken)}" target="_blank" class="view-link">View</a>`
+                    : '-';
+
+                return `
+                    <tr>
+                        <td class="rank-cell ${rankClass}">${formatRank(entry.rank)}</td>
+                        <td class="participant-id">${escapeHtml(entry.team)}</td>
+                        <td class="score-cell primary">${zScore}</td>
+                        ${problemCells}
+                        <td>${viewLink}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            return `
+                <div class="panel-header">
+                    <h2>Overall Rankings</h2>
+                    <p>Rankings by team, based on z-score of primary metric (TM-score) across all problems. Shows best score per problem per team.</p>
+                </div>
+                <div class="table-container">
+                    <table class="ranking-table" data-table-id="overall">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-key="rank" data-type="number">Rank</th>
+                                <th class="sortable" data-key="team" data-type="string">Team</th>
+                                <th class="sortable" data-key="z_score" data-type="number">Z-Score</th>
+                                ${problemHeaders}
+                                <th class="view-col">View</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tableRows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function initializeSorting() {
+            document.querySelectorAll('.ranking-table').forEach(table => {
+                const tableId = table.dataset.tableId;
+                currentSorts[tableId] = { key: 'rank', order: 'asc' };
+
+                table.querySelectorAll('th.sortable').forEach(th => {
+                    th.addEventListener('click', () => {
+                        const key = th.dataset.key;
+                        const type = th.dataset.type || 'number';
+                        const defaultOrder = th.dataset.order || 'desc';
+
+                        // Toggle sort order
+                        let order;
+                        if (currentSorts[tableId].key === key) {
+                            order = currentSorts[tableId].order === 'asc' ? 'desc' : 'asc';
+                        } else {
+                            order = defaultOrder;
+                        }
+
+                        currentSorts[tableId] = { key, order };
+                        sortTable(table, key, type, order);
+
+                        // Update header classes
+                        table.querySelectorAll('th.sortable').forEach(h => {
+                            h.classList.remove('sort-asc', 'sort-desc');
+                        });
+                        th.classList.add(order === 'asc' ? 'sort-asc' : 'sort-desc');
+                    });
+                });
+            });
+        }
+
+        function sortTable(table, key, type, order) {
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            // Find cell index by key ONCE before sorting
+            const headerRow = table.querySelector('thead tr:last-child'); // Use last row in case of multi-row headers
+            const headers = headerRow ? Array.from(headerRow.children) : [];
+            let cellIndex = headers.findIndex(h => h.dataset && h.dataset.key === key);
+
+            if (cellIndex === -1) {
+                console.warn('Sort key not found:', key);
+                return;
+            }
+
+            rows.sort((a, b) => {
+                let aVal = a.children[cellIndex]?.textContent.trim() || '';
+                let bVal = b.children[cellIndex]?.textContent.trim() || '';
+
+                // Handle special values (missing data shown as '-')
+                if (aVal === '-' || aVal === '') aVal = type === 'number' ? -Infinity : '';
+                if (bVal === '-' || bVal === '') bVal = type === 'number' ? -Infinity : '';
+
+                // Remove # from rank and + from z-scores
+                if (aVal.startsWith && aVal.startsWith('#')) aVal = aVal.slice(1);
+                if (bVal.startsWith && bVal.startsWith('#')) bVal = bVal.slice(1);
+                if (typeof aVal === 'string' && aVal.startsWith('+')) aVal = aVal.slice(1);
+                if (typeof bVal === 'string' && bVal.startsWith('+')) bVal = bVal.slice(1);
+
+                if (type === 'number') {
+                    aVal = parseFloat(aVal);
+                    bVal = parseFloat(bVal);
+                    // Handle NaN from parseFloat
+                    if (isNaN(aVal)) aVal = -Infinity;
+                    if (isNaN(bVal)) bVal = -Infinity;
+                }
+
+                let result;
+                if (type === 'number') {
+                    result = aVal - bVal;
+                } else {
+                    result = String(aVal).localeCompare(String(bVal));
+                }
+
+                return order === 'asc' ? result : -result;
+            });
+
+            // Re-append sorted rows
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        function formatScore(value) {
+            if (value === null || value === undefined) return '-';
+            if (typeof value === 'number') {
+                return value.toFixed(3);
+            }
+            return String(value);
+        }
+
+        function getMedalIcon(rank) {
+            if (rank === 1) return '<span class="rank-medal">🥇</span>';
+            if (rank === 2) return '<span class="rank-medal">🥈</span>';
+            if (rank === 3) return '<span class="rank-medal">🥉</span>';
+            return '';
+        }
+
+        function formatRank(rank) {
+            return `${getMedalIcon(rank)}#${rank}`;
+        }
+
+        function formatMetricName(metric) {
+            const names = {
+                'bb_lddt': 'bb-lDDT',
+                'bb_lddt_cov': 'bb-lDDT (cov)',
+                'coverage': 'Coverage',
+                'lddt': 'lDDT',
+                'tm_score': 'TM-score',
+                'ptm': 'pTM',
+                'iptm': 'ipTM',
+                'plddt': 'pLDDT',
+                'ranking_score': 'Ranking Score',
+                'dockq': 'DockQ',
+                'ilddt': 'iLDDT',
+                'interface_lddt': 'iLDDT',
+                'chain_pair_iptm': 'ipTM'
+            };
+            return names[metric] || metric || '-';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize
+        loadLeaderboard();
+    </script>
+</body>
+</html>

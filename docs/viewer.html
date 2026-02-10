@@ -361,9 +361,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.3.0/build/pdbe-molstar-plugin.js"></script>
     <script>
-        // Get token from URL
+        // Get token and optional problem from URL
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
+        const urlProblem = urlParams.get('problem');
 
         // Base URL for results
         const RESULTS_BASE_URL = new URL('./results/', window.location.href).href;
@@ -448,8 +449,10 @@
                 });
             });
 
-            // Select first problem by default
-            if (problems.length > 0) {
+            // Select problem from URL param, or first problem by default
+            if (urlProblem && problems.includes(urlProblem)) {
+                selectProblem(urlProblem);
+            } else if (problems.length > 0) {
                 selectProblem(problems[0]);
             }
         }

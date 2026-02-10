@@ -672,7 +672,7 @@
                             <td class="score-cell highlight">${formatScore(entry.iptm)}</td>
                             <td class="score-cell secondary">${formatScore(entry.ptm)}</td>
                             <td class="score-cell secondary">${formatScore(entry.plddt)}</td>
-                            <td><a href="viewer.html?token=${encodeURIComponent(entry.token)}" target="_blank" class="view-link">View</a></td>
+                            <td><a href="viewer.html?token=${encodeURIComponent(entry.token)}&problem=${encodeURIComponent(problemId)}" target="_blank" class="view-link">View</a></td>
                         </tr>
                     `;
                 }).join('');
@@ -711,7 +711,7 @@
                             <td class="score-cell secondary">${formatScore(entry.rmsd)}</td>
                             <td class="score-cell secondary">${formatScore(entry.ptm)}</td>
                             <td class="score-cell secondary">${formatScore(entry.plddt)}</td>
-                            <td><a href="viewer.html?token=${encodeURIComponent(entry.token)}" target="_blank" class="view-link">View</a></td>
+                            <td><a href="viewer.html?token=${encodeURIComponent(entry.token)}&problem=${encodeURIComponent(problemId)}" target="_blank" class="view-link">View</a></td>
                         </tr>
                     `;
                 }).join('');
